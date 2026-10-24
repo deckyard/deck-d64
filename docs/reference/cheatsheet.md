@@ -1,33 +1,18 @@
 <!-- SPDX-License-Identifier: LGPL-3.0-only -->
-<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu> -->
+<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev> -->
 
 # D64 cheatsheet
 
-The full API surface. Guides: [index.md](../index.md). Runnable programs:
-[examples/](https://github.com/mplx/deck-d64/tree/main/examples).
-
-`tools/check-docs.sh` fails the build on an undocumented export, and on a
-signature here that does not match the code.
-
-A **topics** deck: one namespace, spliced from `src/topics/`. Names are
-written bare here; with `import "@mplx/d64/" as d64;` they read
-`d64.formatDisk(...)`.
-
-```jennifer
-use io;
-import "@mplx/d64/" as d64;
-
-def img as d64.Image init d64.formatDisk("sample disk", "01");
-$img = d64.writeText($img, "readme", d64.FileType.Seq, "hello\n");
-io.printf("%s", d64.directoryText($img));
-d64.save($img, "sample.d64");
-```
+Every export. Names are written bare; after
+`import "@deckyard/d64/" as d64;` they read `d64.formatDisk(...)`. Every
+failure throws an `Error` with `kind` `"d64"`. Functions that return an `Image`
+leave their `img` argument unchanged.
 
 ## Types
 
 ### `Image`
 
-A disk image in memory. Value-semantic: every function that changes a disk returns a fresh one.
+A disk image in memory.
 
 | Field | Notes |
 |---|---|
@@ -142,8 +127,8 @@ Which of the C64's two character sets a PETSCII byte is read in. Zero value `Shi
 
 | Function | Returns | Notes |
 |---|---|---|
-| `formatDisk(name, id)` | `Image` | blank 35-track CBM disk, 664 blocks free. `NEW0:NAME,ID` on a 1541 |
-| `formatDiskWith(options, name, id)` | `Image` | explicit geometry and BAM layout |
+| `formatDisk(name, id)` | `Image` | blank 35-track CBM disk, 664 blocks free. `NEW0:NAME,ID` on a 1541. Name 1-16 characters, ID 1-2 |
+| `formatDiskWith(options, name, id)` | `Image` | explicit geometry and BAM layout; throws on a speeder layout with fewer than 40 tracks |
 | `reformat(img, name, id)` | `Image` | full wipe to `$00`, keeping geometry, layout and error table. `N0:NAME,ID` |
 | `quickFormat(img, name)` | `Image` | erase the BAM and directory only; other blocks keep their bytes, the ID is kept. `N0:NAME` |
 | `reformatWith(img, options, name, id)` | `Image` | explicit `mode`, `fill` and `dosType`; geometry and layout always come from the image |
@@ -151,27 +136,18 @@ Which of the C64's two character sets a PETSCII byte is read in. Zero value `Shi
 | `formatName(format)` | `string` | `"cbm"` / `"speeddos"` / `"dolphindos"` / `"prologicdos"` |
 | `formatFromName(name)` | `DiskFormat` | inverse, case-insensitive; also `"1541"`, `"commodore"`, `"speed"`, `"dolphin"`, `"prologic"`, hyphenated |
 | `formatTracks(format)` | `int` | 35 for `Cbm`, 40 for the speeder layouts |
-| `detectFormat(bam, tracks)` | `DiskFormat` | guess the layout from sector 18/0; used by `fromBytes` |
+| `detectFormat(bam, tracks)` | `DiskFormat` | guess the layout from sector 18/0; used by `fromBytes`. Always `Cbm` for 35 tracks |
 | `headerOffsetFor(format)` | `int` | `$90`, or `$a4` under PrologicDOS |
 | `bamEntryOffset(format, track)` | `int` | offset of a track's four BAM bytes, `-1` when it has none |
-
-```jennifer
-def opts as d64.FormatOptions init d64.FormatOptions{
-    tracks: 40, format: d64.DiskFormat.SpeedDos, errorInfo: false,
-    dosType: "", fill: 0, mode: d64.FormatMode.Full
-};
-def img as d64.Image init d64.formatDiskWith($opts, "forty track", "40");
-d64.blocksFree($img);   # 749
-```
 
 ## Image
 
 | Function | Returns | Notes |
 |---|---|---|
-| `fromBytes(raw)` | `Image` | geometry derived from the length |
+| `fromBytes(raw)` | `Image` | geometry from the length, layout from `detectFormat`; throws when the length is not a D64 size |
 | `toBytes(img)` | `bytes` | the image, ready to write |
-| `open(path)` | `Image` | read one from a file |
-| `save(img, path)` |  | write one to a file |
+| `open(path)` | `Image` | read one from a file; throws when the file is missing |
+| `save(img, path)` |  | write one to a file, replacing it |
 | `withFormat(img, format)` | `Image` | overrule `detectFormat`. No bytes change |
 | `blockCount(img)` | `int` | 683, 768 or 802 |
 | `readSector(img, track, sector)` | `bytes` | exactly 256 bytes. The BAM is not consulted |
@@ -179,13 +155,13 @@ d64.blocksFree($img);   # 749
 | `readBlocks(img, first, count)` | `bytes` | a run of consecutive blocks, crossing track boundaries; `count * 256` bytes |
 | `writeBlocks(img, first, data)` | `Image` | the same in reverse; `data` is a whole multiple of 256 bytes |
 | `blockNumber(track, sector)` | `int` | the flat block index, 0 at 1/0 |
-| `blockLink(number)` | `Link` | the inverse |
+| `blockLink(number)` | `Link` | the inverse; `number` 0-801 |
 | `patchSector(img, track, sector, offset, data)` | `Image` | overwrite part of one block, leaving the rest of it alone |
 | `readAt(img, offset, length)` | `bytes` | the flat byte view, block boundaries ignored; the error table is outside it |
 | `writeAt(img, offset, data)` | `Image` | the same in reverse |
 | `findBytes(img, pattern)` | `list of int` | every offset the pattern occurs at, ascending. `blockLink($at // SECTOR_SIZE)` gives the address |
 | `sectorError(img, track, sector)` | `int` | recorded read result; `ERROR_OK` when there is no error table |
-| `setSectorError(img, track, sector, code)` | `Image` | raises without an error table |
+| `setSectorError(img, track, sector, code)` | `Image` | throws without an error table |
 | `clearErrorTable(img)` | `Image` | mark every block good; no-op without a table |
 
 ## Geometry
@@ -208,9 +184,9 @@ d64.blocksFree($img);   # 749
 | `hasBamEntry(img, track)` | `bool` | whether the track is covered |
 | `isFree(img, track, sector)` | `bool` | whether the block is available |
 | `isAllocated(img, track, sector)` | `bool` | the inverse |
-| `allocateSector(img, track, sector)` | `Image` | raises if already taken |
-| `freeSector(img, track, sector)` | `Image` | raises if already free |
-| `nextFreeSector(img, near, interleave)` | `Link` | stay on `near`'s track at the interleave, then spiral out from track 18. Raises on a full disk |
+| `allocateSector(img, track, sector)` | `Image` | throws if already taken or the track has no BAM entry |
+| `freeSector(img, track, sector)` | `Image` | throws if already free or the track has no BAM entry |
+| `nextFreeSector(img, near, interleave)` | `Link` | stay on `near`'s track at the interleave, then spiral out from track 18. Throws on a full disk |
 | `trackSearchOrder(img, preferred)` | `list of int` | that spiral, `preferred` first when usable |
 
 ## Disk header
@@ -219,11 +195,11 @@ d64.blocksFree($img);   # 749
 |---|---|---|
 | `diskName(img)` | `string` | the shifted reading |
 | `diskNameIn(img, charset)` | `string` | the name in a chosen character set |
-| `setDiskName(img, name)` | `Image` |  |
-| `diskId(img)` | `string` |  |
-| `setDiskId(img, id)` | `Image` |  |
+| `setDiskName(img, name)` | `Image` | 1 to 16 characters |
+| `diskId(img)` | `string` | pad byte trimmed |
+| `setDiskId(img, id)` | `Image` | one or two characters; one is padded with `$a0` |
 | `dosType(img)` | `string` | `"2a"` on anything a 1541 wrote |
-| `dosVersion(img)` | `int` | the byte at `$02` of the BAM; `$41` normally |
+| `dosVersion(img)` | `int` | the byte at `$02` of the BAM; `$41` normally. A 1541 will not write to a disk with another value |
 
 ## Directory
 
@@ -231,15 +207,15 @@ d64.blocksFree($img);   # 749
 |---|---|---|
 | `listFiles(img)` | `list of Entry` | live files, in directory order |
 | `findFiles(img, pattern)` | `list of Entry` | matching a CBM pattern |
-| `findFile(img, name)` | `Entry` | exact name; raises on a miss |
+| `findFile(img, name)` | `Entry` | exact name, case-insensitive; throws on a miss |
 | `hasFile(img, name)` | `bool` | exact name, case-insensitive |
 | `directoryText(img)` | `string` | the `LOAD"$",8` listing |
 | `directoryTextIn(img, charset)` | `string` | the same listing in a chosen character set; `Charset.Unshifted` shows border art as borders |
 | `nameBytes(img, entry)` | `bytes` | the 16 raw name bytes of an entry's slot, the lossless route to the other reading |
-| `renameFile(img, oldName, newName)` | `Image` |  |
+| `renameFile(img, oldName, newName)` | `Image` | throws on a missing file or a name already taken |
 | `lockFile(img, name)` | `Image` | `SCRATCH` then refuses it |
 | `unlockFile(img, name)` | `Image` |  |
-| `directorySectors(img)` | `list of Link` | the directory chain; raises if it loops or leaves track 18 |
+| `directorySectors(img)` | `list of Link` | the directory chain; throws if it loops or leaves track 18 |
 | `fileTypeName(kind)` | `string` | `"del"` / `"seq"` / `"prg"` / `"usr"` / `"rel"` |
 | `fileTypeFromName(name)` | `FileType` | inverse, case-insensitive |
 | `fileTypeFromByte(raw)` | `FileType` | the low nibble of a type byte |
@@ -252,27 +228,27 @@ d64.blocksFree($img);   # 749
 | `readFile(img, name)` | `bytes` | raw; nothing transcoded. Refuses a DEL entry, which is a directory slot rather than a file |
 | `readText(img, name)` | `string` | PETSCII to text |
 | `readProgram(img, name)` | `Program` | split at the load address |
-| `readChain(img, track, sector)` | `bytes` | a chain no entry points at |
+| `readChain(img, track, sector)` | `bytes` | the payload of any chain, entry or not |
 | `chainOf(img, track, sector)` | `list of Link` | the blocks a file uses |
 | `fileInfo(img, name)` | `FileInfo` | the entry, the chain, the real size and the PRG load address. A DEL entry reports an empty chain |
 | `listFileInfo(img)` | `list of FileInfo` | the same for every file |
-| `writeFile(img, name, kind, data)` | `Image` | raises on a taken name, a REL or DEL kind, or a full disk or directory |
+| `writeFile(img, name, kind, data)` | `Image` | throws on a taken name, a REL or DEL kind, or a full disk or directory |
 | `writeText(img, name, kind, text)` | `Image` | transcodes to PETSCII |
 | `writeProgram(img, name, address, data)` | `Image` | load address first, low byte first |
-| `updateFile(img, name, kind, data)` | `Image` | replace, or write if absent |
+| `updateFile(img, name, kind, data)` | `Image` | replace, or write if absent; throws on a locked file |
 | `patchFile(img, name, offset, data)` | `Image` | overwrite bytes in place; chain, entry and BAM untouched. Cannot change the length |
-| `deleteFile(img, name)` | `Image` | scratch; raises on a locked file. A DEL entry loses its slot and frees no blocks |
+| `deleteFile(img, name)` | `Image` | scratch; throws on a locked file. A DEL entry loses its slot and frees no blocks |
 
 ## PETSCII
 
 | Function | Returns | Notes |
 |---|---|---|
 | `toPetscii(text)` | `bytes` | case-swapped, the `petcat` convention. `Charset.Shifted` |
-| `fromPetscii(data)` | `string` | inverse; a byte with no glyph becomes `?` |
+| `fromPetscii(data)` | `string` | inverse; `$80`-`$9f` and `$e0`-`$fe` become `?` |
 | `toPetsciiIn(text, charset)` | `bytes` | the same in a chosen character set |
 | `fromPetsciiIn(data, charset)` | `string` | the same in a chosen character set |
 | `encodeName(name)` | `bytes` | 16 PETSCII bytes, pad-filled. Raises on an empty name, one over 16 characters, or one holding the pad byte |
-| `decodeName(raw)` | `string` | trailing padding dropped |
+| `decodeName(raw)` | `string` | trailing padding dropped, an inner pad byte read as a space |
 | `encodeNameIn(name, charset)` | `bytes` | the same in a chosen character set |
 | `decodeNameIn(raw, charset)` | `string` | the same in a chosen character set |
 | `matchName(pattern, name)` | `bool` | the drive's `*` and `?`, case-insensitive |

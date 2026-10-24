@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - the Block Availability Map: what is free, what is taken, and the
@@ -12,8 +12,8 @@
  * Tracks 1-35 always are. Tracks 36-40 are only under the three speeder
  * layouts, and tracks 41-42 never are - see {@link bamEntryOffset}.
  *
- * @param {Image} img   the image
- * @param {int}   track track number
+ * @param img {Image} the disk to read
+ * @param track {int} track number
  * @return {bool} true when the track has four BAM bytes of its own
  * @example
  *   hasBamEntry(formatDisk("d", "01"), 18);   # true
@@ -31,9 +31,9 @@ export func hasBamEntry(img as Image, track as int) {
  * A block on a track the BAM does not cover is never free - nothing can be
  * allocated there, because there would be no way to record it.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to read
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {bool} true when the block is available
  * @throws {Error} when the address is outside the image
  * @example
@@ -52,9 +52,9 @@ export func isFree(img as Image, track as int, sector as int) {
 /**
  * Whether a block is taken - the inverse of {@link isFree}.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to read
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {bool} true when the block is in use or unavailable
  * @throws {Error} when the address is outside the image
  * @example
@@ -67,8 +67,8 @@ export func isAllocated(img as Image, track as int, sector as int) {
 /**
  * Free blocks on one track, as the BAM's own count byte reports it.
  *
- * @param {Image} img   the image
- * @param {int}   track track number
+ * @param img {Image} the disk to read
+ * @param track {int} track number
  * @return {int} free blocks, 0 when the track has no BAM entry
  * @throws {Error} when the track is outside the image
  * @example
@@ -90,12 +90,10 @@ export func trackBlocksFree(img as Image, track as int) {
 /**
  * Free blocks a file could use, which is what a 1541 prints.
  *
- * Track 18 is left out of the sum: CBM DOS keeps it for the BAM and the
- * directory and never puts file data there, so its free blocks are not
- * blocks you can store anything in. A freshly formatted 35-track disk
- * answers 664.
+ * Track 18 is left out: CBM DOS keeps it for the BAM and the directory and
+ * never puts file data there. A freshly formatted 35-track disk answers 664.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {int} allocatable free blocks
  * @example
  *   blocksFree(formatDisk("sample", "01"));   # 664
@@ -117,12 +115,12 @@ export func blocksFree(img as Image) {
 /**
  * Mark a block taken.
  *
- * Allocating a block that is already taken is an error, not a silent no-op -
- * it means two chains would share it, which is how a disk loses a file.
+ * Allocating a block that is already taken throws: two chains would share it,
+ * which is how a disk loses a file.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to change
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {Image} the image with the block allocated
  * @throws {Error} when the block is already taken or has no BAM entry
  * @example
@@ -139,13 +137,12 @@ export func allocateSector(img as Image, track as int, sector as int) {
 /**
  * Mark a block free.
  *
- * Freeing a block that is already free is an error for the same reason
- * allocating a taken one is: it means the count byte and the bitmap have
- * drifted apart.
+ * Freeing a block that is already free throws: it means the count byte and
+ * the bitmap have drifted apart.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to change
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {Image} the image with the block freed
  * @throws {Error} when the block is already free or has no BAM entry
  * @example
@@ -172,10 +169,10 @@ export func freeSector(img as Image, track as int, sector as int) {
  * spirals outward from the directory track: 17, 19, 16, 20, and so on, so
  * a file lands as close to the directory as it can.
  *
- * @param {Image} img        the image
- * @param {Link}  near       where to start looking; `Link{track: 0, sector: 0}`
+ * @param img {Image} the disk to read
+ * @param near {Link}       where to start looking; `Link{track: 0, sector: 0}`
  *                           means "anywhere"
- * @param {int}   interleave sectors to skip between blocks, 1 or more
+ * @param interleave {int} sectors to skip between blocks, 1 or more
  * @return {Link} the block found
  * @throws {Error} when the disk is full
  * @example
@@ -185,14 +182,51 @@ export func nextFreeSector(img as Image, near as Link, interleave as int) {
     if ($interleave < 1) {
         fail("an interleave is 1 or more, not " + convert.toString($interleave));
     }
-    for (def track in trackSearchOrder($img, $near.track)) {
-        def start as int init 0;
-        if ($track == $near.track) {
-            $start = ($near.sector + $interleave) % sectorsPerTrack($track);
-        }
-        def found as int init freeSectorOnTrack($img, $track, $start, $interleave);
+    return freeBlockNear(
+        $img,
+        readSector($img, DIRECTORY_TRACK, BAM_SECTOR),
+        $near,
+        $interleave,
+        trackSearchOrder($img, 0));
+}
+
+/**
+ * The same search, over a track order the caller already has.
+ *
+ * {@link trackSearchOrder} does not depend on `near`, only on the image, so a
+ * loop allocating a whole file would otherwise rebuild the same list once per
+ * block. `near`'s own track is preferred here instead of being folded into
+ * the list.
+ *
+ * @param img {Image} the disk to read
+ * @param bam {bytes}        the BAM sector to search, which may hold
+ *                                 claims not yet written back to `img`
+ * @param near {Link}       where to start looking
+ * @param interleave {int} sectors to skip between blocks
+ * @param spiral {list of int}     the track order, from `trackSearchOrder(img, 0)`
+ * @return {Link} the block found
+ * @throws {Error} when the disk is full
+ */
+func freeBlockNear(
+    img as Image,
+    bam as bytes,
+    near as Link,
+    interleave as int,
+    spiral as list of int) {
+    if ($near.track >= 1 and $near.track <= $img.tracks and $near.track != DIRECTORY_TRACK and
+        hasBamEntry($img, $near.track)) {
+        def start as int init ($near.sector + $interleave) % sectorsPerTrack($near.track);
+        def found as int init freeSectorIn($bam, $img.format, $near.track, $start, $interleave);
         if ($found >= 0) {
-            return Link{track: $track, sector: $found};
+            return Link{track: $near.track, sector: $found};
+        }
+    }
+    for (def track in $spiral) {
+        if ($track != $near.track) {
+            def found as int init freeSectorIn($bam, $img.format, $track, 0, $interleave);
+            if ($found >= 0) {
+                return Link{track: $track, sector: $found};
+            }
         }
     }
     fail("the disk is full: no free block left");
@@ -206,8 +240,8 @@ export func nextFreeSector(img as Image, near as Link, interleave as int) {
  * from the directory track, nearest first. Track 18 never appears - it is
  * the directory's - and neither does a track with no BAM entry.
  *
- * @param {Image} img       the image
- * @param {int}   preferred the track to try first, 0 for none
+ * @param img {Image} the disk to read
+ * @param preferred {int} the track to try first, 0 for none
  * @return {list of int} the tracks to try, in order
  * @example
  *   trackSearchOrder(formatDisk("d", "01"), 0)[0];   # 17
@@ -244,20 +278,23 @@ export func trackSearchOrder(img as Image, preferred as int) {
  * only covers the whole track when the two are coprime; a linear sweep picks
  * up whatever it missed, so a track with any free block always yields one.
  *
- * @param {Image} img        the image
- * @param {int}   track      the track to search
- * @param {int}   start      the sector to try first
- * @param {int}   interleave sectors to skip between tries
+ * @param bam {bytes} the BAM sector to search
+ * @param format {DiskFormat} the layout to read it under
+ * @param track {int}      the track to search
+ * @param start {int}      the sector to try first
+ * @param interleave {int} sectors to skip between tries
  * @return {int} the sector found, or -1 when the track is full
  */
-func freeSectorOnTrack(img as Image, track as int, start as int, interleave as int) {
-    def at as int init bamEntryOffset($img.format, $track);
+func freeSectorIn(
+    bam as bytes,
+    format as DiskFormat,
+    track as int,
+    start as int,
+    interleave as int) {
+    def at as int init bamEntryOffset($format, $track);
     if ($at < 0) {
         return -1;
     }
-    # the track's bitmap, read once - this runs for every block of every file,
-    # so re-reading the BAM sector per candidate sector would dominate a write
-    def bam as bytes init readSector($img, DIRECTORY_TRACK, BAM_SECTOR);
     def count as int init sectorsPerTrack($track);
     for (def i as int init 0; $i < $count; $i = $i + 1) {
         def s as int init ($start + $i * $interleave) % $count;
@@ -274,12 +311,34 @@ func freeSectorOnTrack(img as Image, track as int, start as int, interleave as i
 }
 
 /**
+ * Mark a block taken in a BAM sector held outside the image.
+ *
+ * The batching half of {@link allocateSector}: a caller reserving a whole
+ * chain claims each block here and writes the sector back once, instead of
+ * copying the whole image per block.
+ *
+ * @param bam {bytes}    the BAM sector
+ * @param format {DiskFormat} the layout to read it under
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
+ * @return {bytes} the sector with the block claimed
+ */
+func claimIn(bam as bytes, format as DiskFormat, track as int, sector as int) {
+    def at as int init bamEntryOffset($format, $track);
+    def byteAt as int init $at + 1 + ($sector // 8);
+    def out as bytes init $bam;
+    $out[$byteAt] = clearBit($out[$byteAt], $sector % 8);
+    $out[$at] = $out[$at] -1;
+    return $out;
+}
+
+/**
  * Set or clear one bit of the BAM and fix the track's count byte with it.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
- * @param {bool}  free   true to mark free, false to mark taken
+ * @param img {Image} the disk to change
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
+ * @param free {bool}   true to mark free, false to mark taken
  * @return {Image} the image with the BAM updated
  */
 func setBamBit(img as Image, track as int, sector as int, free as bool) {
@@ -305,7 +364,7 @@ func setBamBit(img as Image, track as int, sector as int, free as bool) {
 /**
  * The disk name, as the header of a directory listing shows it.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {string} the name, pad bytes trimmed
  * @example
  *   diskName(formatDisk("sample disk", "01"));   # "sample disk"
@@ -320,8 +379,8 @@ export func diskName(img as Image) {
  * `Charset.Unshifted` is what shows a name drawn out of border graphics
  * rather than the run of capitals a shifted reading makes of it.
  *
- * @param {Image}   img     the image
- * @param {Charset} charset which character set to read it in
+ * @param img {Image} the disk to read
+ * @param charset {Charset} which character set to read it in
  * @return {string} the name, pad bytes trimmed
  * @example
  *   diskNameIn($img, Charset.Unshifted);
@@ -335,8 +394,8 @@ export func diskNameIn(img as Image, charset as Charset) {
 /**
  * Rename the disk.
  *
- * @param {Image}  img  the image
- * @param {string} name the new name, 1 to 16 characters
+ * @param img {Image} the disk to change
+ * @param name {string} the new name, 1 to 16 characters
  * @return {Image} the image with the header rewritten
  * @throws {Error} when the name will not fit
  * @example
@@ -353,10 +412,10 @@ export func setDiskName(img as Image, name as string) {
 }
 
 /**
- * The two-character disk ID.
+ * The disk ID.
  *
- * @param {Image} img the image
- * @return {string} the ID
+ * @param img {Image} the disk to read
+ * @return {string} the ID, one or two characters, pad byte trimmed
  * @example
  *   diskId(formatDisk("sample", "01"));   # "01"
  */
@@ -369,12 +428,11 @@ export func diskId(img as Image) {
 /**
  * Change the disk ID.
  *
- * On real hardware the ID is what the drive compares to decide whether the
- * disk was swapped, so changing it on a disk that is already written is a
- * thing to do deliberately.
+ * A one-character ID is padded with `$a0`. A 1541 compares the ID to detect
+ * a disk swap.
  *
- * @param {Image}  img the image
- * @param {string} id  the new ID, one or two characters
+ * @param img {Image} the disk to change
+ * @param id {string}  the new ID, one or two characters
  * @return {Image} the image with the header rewritten
  * @throws {Error} when the ID will not fit
  * @example
@@ -390,9 +448,9 @@ export func setDiskId(img as Image, id as string) {
 }
 
 /**
- * The two-character DOS type, `"2A"` on everything a 1541 wrote.
+ * The two-character DOS type: `"2a"` (shown `2A`) on everything a 1541 wrote.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {string} the DOS type
  * @example
  *   dosType(formatDisk("sample", "01"));   # "2a"
@@ -406,11 +464,10 @@ export func dosType(img as Image) {
 /**
  * The DOS version byte at offset `$02` of the BAM.
  *
- * `$41` is what CBM DOS writes. A disk with anything else there is refused by
- * a real drive unless the drive's own version byte is patched to match -
- * which is exactly what some copy-protection schemes did.
+ * `$41` is what CBM DOS 2.6 writes. A 1541 will not write to a disk that
+ * carries any other value there (a soft write protect); reading still works.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {int} the version byte
  * @example
  *   dosVersion(formatDisk("sample", "01"));   # 65

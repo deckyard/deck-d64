@@ -1,15 +1,14 @@
 <!-- SPDX-License-Identifier: LGPL-3.0-only -->
-<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu> -->
+<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev> -->
 
 # Formatting a disk
 
-`formatDisk` is `NEW0:NAME,ID` on a 1541: every block free, a blank BAM and
-the disk header in 18/0, one empty directory block in 18/1, those two marked
-taken.
+`formatDisk` is `NEW0:NAME,ID` on a 1541: a blank BAM and disk header in
+18/0, one empty directory block in 18/1, every other block free.
 
 ```jennifer
 use io;
-import "@mplx/d64/" as d64;
+import "@deckyard/d64/" as d64;
 
 def img as d64.Image init d64.formatDisk("sample disk", "01");
 
@@ -20,11 +19,9 @@ d64.diskId($img);         # "01"
 d64.dosType($img);        # "2a"
 ```
 
-664, not 683: track 18 is reserved for the BAM and the directory, so
-`blocksFree` excludes it. That is the number the drive prints.
-
-Name: up to 16 characters. ID: exactly 2. Both are PETSCII - write them lower
-case.
+664, not 683: like the drive, `blocksFree` leaves out track 18. The name is
+1 to 16 characters, the ID one or two (one is padded with `$a0`); write both
+lower case.
 
 ## Geometries
 
@@ -50,13 +47,13 @@ d64.blocksFree($img);     # 749
 | 42 | 802 | 205,312 | 206,114 |
 
 `imageSize(tracks, errorInfo)` computes these; `tracksForSize(n)` and
-`sizeHasErrorInfo(n)` read them back. `fromBytes` derives geometry from length
-alone.
+`sizeHasErrorInfo(n)` invert it. `fromBytes` takes the geometry from the
+length.
 
 ## The four BAM layouts
 
-The stock BAM has entries for tracks 1-35 at `$04`-`$8f`, then the disk
-header. The 40-track speeder DOSes each put the five extra entries elsewhere.
+Tracks 1-35 have entries at `$04`-`$8f`, then comes the disk header. Each
+40-track speeder DOS put the entries for tracks 36-40 somewhere else:
 
 | `DiskFormat` | Tracks 36-40 | Header |
 |---|---|---|
@@ -65,9 +62,8 @@ header. The 40-track speeder DOSes each put the five extra entries elsewhere.
 | `DolphinDos` | `$ac`-`$bf` | `$90` |
 | `PrologicDos` | `$90`-`$a3` | `$a4` |
 
-PrologicDOS used the disk-name bytes and moved the header 20 bytes forward.
-`headerOffsetFor` and `bamEntryOffset` answer both questions; every BAM call
-goes through them.
+PrologicDOS put them over the disk name and moved the header up 20 bytes.
+Every BAM call goes through `headerOffsetFor` and `bamEntryOffset`.
 
 ```jennifer
 d64.bamEntryOffset(d64.DiskFormat.SpeedDos, 36);     # 192 ($c0)
@@ -77,7 +73,7 @@ d64.bamEntryOffset(d64.DiskFormat.Cbm, 36);          # -1
 
 ### 40 tracks in the stock layout
 
-Legal, and a real drive reads it - but tracks 36-40 have no BAM entry, so
+Allowed, and a stock drive reads it, but tracks 36-40 have no BAM entry, so
 nothing is allocated there.
 
 ```jennifer
@@ -91,34 +87,37 @@ d64.hasBamEntry($img, 36);     # false
 d64.isFree($img, 36, 0);       # false - unavailable
 ```
 
-The reverse is refused: a speeder layout on 35 tracks raises.
+A speeder layout on 35 tracks throws.
 
 ### Tracks 41 and 42
 
-No layout defines entries for them. `readSector` and `writeSector` reach them;
-the allocator never does and `blocksFree` never counts them.
+No layout has BAM entries for them. `readSector` and `writeSector` reach
+them; the allocator and `blocksFree` do not.
 
 ## Detection
 
-`fromBytes` and `open` call `detectFormat`:
+`fromBytes` and `open` call `detectFormat` on sector 18/0:
 
-- 35 tracks → always `Cbm`;
-- DOS type at `$b9` instead of `$a5` → `PrologicDos`;
-- otherwise whichever extra region carries plausible free-sector counts.
+1. 35 tracks: `Cbm`.
+2. DOS type `"2a"` (`$32 $41`) at `$b9` instead of `$a5`: `PrologicDos`.
+3. A plausible region at `$c0`: `SpeedDos`; else at `$ac`: `DolphinDos`.
+   Plausible means all five counts are 17 or less and at least one is
+   non-zero.
+4. Otherwise `Cbm`.
 
-A heuristic. Override it:
+When you know the layout, override the guess:
 
 ```jennifer
 def img as d64.Image init d64.withFormat(d64.open("mystery.d64"),
     d64.DiskFormat.DolphinDos);
 ```
 
-`withFormat` changes no bytes, only how the BAM is read.
+`withFormat` changes no bytes.
 
 ## Error tables
 
 One byte per block after the block data: the read result a mastering tool
-recorded. `$01` is no error; other codes are the 1541's own.
+recorded. `$01` (`ERROR_OK`) is no error; other values are 1541 error codes.
 
 ```jennifer
 def opts as d64.FormatOptions init d64.FormatOptions{
@@ -131,31 +130,24 @@ $img = d64.setSectorError($img, 17, 3, 0x0b);    # data checksum error
 $img = d64.clearErrorTable($img);
 ```
 
-An image without a table reports `ERROR_OK` everywhere; `setSectorError`
-raises on one.
+On an image without a table `sectorError` returns `ERROR_OK` for every block
+and `setSectorError` throws.
 
 ## Quick and full
 
-CBM DOS draws the distinction between `N0:NAME,ID` and `N0:NAME`, and so does
-this deck.
-
 | | Writes | Leaves | On a 1541 |
 |---|---|---|---|
-| `reformat` / `FormatMode.Full` | every block, then BAM + directory | nothing | ~1 minute |
-| `quickFormat` / `FormatMode.Quick` | BAM + first directory block | every other block | instant |
+| `reformat` / `FormatMode.Full` (`N0:NAME,ID`) | every block, then BAM + directory | nothing | ~1 minute |
+| `quickFormat` / `FormatMode.Quick` (`N0:NAME`) | BAM + first directory block | every other block | instant |
 
 ```jennifer
 $img = d64.reformat($img, "fresh", "02");    # full wipe, blocks set to $00
 $img = d64.quickFormat($img, "fresh");       # soft format, ID kept
 ```
 
-A quick format lists the disk as empty and frees every block, but the old
-files' bytes are still on it - unreachable, not erased. Use a full format when
-that matters.
-
-`quickFormat` keeps the disk ID, because the drive does not re-stamp it
-either. Two disks soft-formatted from the same original share an ID, which is
-how a real 1541 comes to act on a stale BAM after a swap.
+A quick format leaves the old files' bytes on the disk, unreachable. It keeps
+the disk ID, as the drive does; two disks soft-formatted from one original
+share an ID, which is how a real 1541 comes to use a stale BAM after a swap.
 
 ### The fill byte
 
@@ -169,9 +161,6 @@ $img = d64.reformatWith($img, $opts, "wiped", "02");
 d64.readSector($img, 17, 0)[0];   # 255
 ```
 
-`fill` works on `formatDiskWith` too, for a new image. The error table is
-never filled - it is set to `ERROR_OK` regardless.
-
-`reformatWith` reads only `mode`, `fill` and `dosType` from the options.
-Geometry and BAM layout always come from the image: changing those makes a
-different disk, which is `formatDiskWith`.
+`formatDiskWith` takes `fill` too. The error table is set to `ERROR_OK`, not
+filled. `reformatWith` reads only `mode`, `fill` and `dosType` (`""` keeps the
+image's own); geometry and layout come from the image.

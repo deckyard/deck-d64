@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - white-box tests for the image topic.
@@ -450,21 +450,39 @@ func testFindBytesReturnsEveryMatchInOrder() {
     testing.assertEqual($hits[1], sectorOffset(20, 3) + 100);
 }
 
-func testFindBytesSeesAMatchAcrossAWindowBoundary() {
-    # the scan works in fixed windows; a match straddling one must be found
-    # exactly once, whatever the window size
+func testFindBytesFindsAMatchAnywhereOnTheDisk() {
+    # no windowing to trip over any more, but the property still holds: a
+    # match is found wherever it sits, including hard against either end
     def mark as bytes;
     $mark[] = 0xc7;
     $mark[] = 0x2a;
     $mark[] = 0x5f;
-    for (def offset as int init SEARCH_WINDOW - 4;
-        $offset <= SEARCH_WINDOW + 1;
-        $offset = $offset + 1) {
-        def img as Image init writeAt(formatDisk("d", "01"), $offset, $mark);
+    def blank as Image init formatDisk("d", "01");
+    def last as int init blockCount($blank) * SECTOR_SIZE - len($mark);
+    def spots as list of int init [0, 1, 255, 256, 257, 4095, 4096, $last];
+    for (def at in $spots) {
+        def img as Image init writeAt($blank, $at, $mark);
         def hits as list of int init findBytes($img, $mark);
         testing.assertEqual(len($hits), 1);
-        testing.assertEqual($hits[0], $offset);
+        testing.assertEqual($hits[0], $at);
     }
+}
+
+func testFindBytesReportsOverlappingMatchesInOrder() {
+    def mark as bytes;
+    $mark[] = 0xaa;
+    $mark[] = 0xaa;
+    def run as bytes;
+    for (def i as int init 0; $i < 4; $i = $i + 1) {
+        $run[] = 0xaa;
+    }
+    def img as Image init writeAt(formatDisk("d", "01"), 1000, $run);
+    def hits as list of int init findBytes($img, $mark);
+    # four identical bytes hold three overlapping two-byte matches
+    testing.assertEqual(len($hits), 3);
+    testing.assertEqual($hits[0], 1000);
+    testing.assertEqual($hits[1], 1001);
+    testing.assertEqual($hits[2], 1002);
 }
 
 func testFindBytesOnAMiss() {
@@ -502,4 +520,43 @@ func testBlockRangesStopAtTheErrorTable() {
 func readBlocksIntoTheErrorTable() {
     def img as Image init errorTableDisk();
     readBlocks($img, blockLink(blockCount($img) - 1), 2);
+}
+
+func testSaveThenOpenRoundTrips() {
+    def dir as string init fs.makeTempDir();
+    defer fs.removeAll($dir);
+    def path as string init $dir + "/disk.d64";
+    def img as Image init writeFile(formatDisk("saved", "sv"), "data", FileType.Seq, counting(600));
+    save($img, $path);
+    def again as Image init open($path);
+    testing.assertEqual(toBytes($again), toBytes($img));
+    testing.assertEqual(diskName($again), "saved");
+    testing.assertEqual(readFile($again, "data"), counting(600));
+}
+
+func testSaveReplacesWhatIsThere() {
+    def dir as string init fs.makeTempDir();
+    defer fs.removeAll($dir);
+    def path as string init $dir + "/disk.d64";
+    save(formatDisk("first", "01"), $path);
+    save(formatDisk("second", "02"), $path);
+    def again as Image init open($path);
+    testing.assertEqual(diskName($again), "second");
+}
+
+func testOpenRaisesOnAMissingFileAndOnRubbish() {
+    testing.assertThrows("openAMissingImage", ERROR_KIND);
+    testing.assertThrows("openRubbish", ERROR_KIND);
+}
+
+func openAMissingImage() {
+    open("no/such/image.d64");
+}
+
+func openRubbish() {
+    def dir as string init fs.makeTempDir();
+    def path as string init $dir + "/rubbish.d64";
+    defer fs.removeAll($dir);
+    fs.writeBytes($path, zeroBytes(4096));
+    open($path);
 }

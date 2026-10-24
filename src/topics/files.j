@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - files: reading, writing and scratching the block chains.
@@ -8,8 +8,8 @@
 /**
  * A C64 program file, split into the parts BASIC and the loader care about.
  *
- * @field {int}   address the load address the first two bytes of a PRG carry
- * @field {bytes} data    everything after it - the program itself
+ * @field address {int} the load address the first two bytes of a PRG carry
+ * @field data {bytes}    everything after it - the program itself
  */
 export def struct Program {
     address as int,
@@ -21,11 +21,11 @@ export def struct Program {
  *
  * Each block's first two bytes point at the next; a track byte of 0 ends the
  * chain. The walk is bounded by the size of the disk, so a chain that links
- * back on itself raises rather than running forever.
+ * back on itself throws.
  *
- * @param {Image} img    the image
- * @param {int}   track  track of the first block, 0 for an empty chain
- * @param {int}   sector sector of the first block
+ * @param img {Image} the disk to read
+ * @param track {int}  track of the first block, 0 for an empty chain
+ * @param sector {int} sector of the first block
  * @return {list of Link} the blocks, in order
  * @throws {Error} when the chain loops or leaves the disk
  * @example
@@ -56,16 +56,18 @@ export func chainOf(img as Image, track as int, sector as int) {
  * a value of `n` means bytes `$02` through `$n` are the file, so `n - 1`
  * bytes of payload.
  *
- * @param {Image} img    the image
- * @param {int}   track  track of the first block
- * @param {int}   sector sector of the first block
+ * @param img {Image} the disk to read
+ * @param track {int}  track of the first block
+ * @param sector {int} sector of the first block
  * @return {bytes} the file's contents
  * @throws {Error} when the chain loops, leaves the disk, or ends badly
  * @example
  *   readChain($img, 17, 0);
  */
 export func readChain(img as Image, track as int, sector as int) {
-    def out as bytes;
+    # Collect each block's payload and join once: appending 254 bytes at a
+    # time through the interpreter dominated reading a large file.
+    def parts as list of bytes;
     def links as list of Link init chainOf($img, $track, $sector);
     for (def i as int init 0; $i < len($links); $i = $i + 1) {
         def block as bytes init readSector($img, $links[$i].track, $links[$i].sector);
@@ -77,11 +79,9 @@ export func readChain(img as Image, track as int, sector as int) {
             }
             $take = $block[1] -1;
         }
-        for (def k as int init 0; $k < $take; $k = $k + 1) {
-            $out[] = $block[2 + $k];
-        }
+        $parts[] = $block[2..2 + $take];
     }
-    return $out;
+    return binary.join($parts);
 }
 
 /**
@@ -97,8 +97,8 @@ export func readChain(img as Image, track as int, sector as int) {
  * whatever was there. Following it would return the blocks it happens to name
  * - often the BAM and the directory - as if they were the file.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename, matched exactly
+ * @param img {Image} the disk to read
+ * @param name {string} the filename, matched exactly
  * @return {bytes} the file's contents
  * @throws {Error} when the file is missing or its chain is broken
  * @example
@@ -122,8 +122,8 @@ export func readFile(img as Image, name as string) {
  * For SEQ and USR text. A PETSCII carriage return becomes a newline, so the
  * result splits on `\n` like any other text.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename
+ * @param img {Image} the disk to read
+ * @param name {string} the filename
  * @return {string} the file as text
  * @throws {Error} when the file is missing or its chain is broken
  * @example
@@ -136,8 +136,8 @@ export func readText(img as Image, name as string) {
 /**
  * Read a PRG and split its load address off the front.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename
+ * @param img {Image} the disk to read
+ * @param name {string} the filename
  * @return {Program} the load address and the bytes after it
  * @throws {Error} when the file is missing, or is too short to carry an address
  * @example
@@ -155,19 +155,18 @@ export func readProgram(img as Image, name as string) {
 /**
  * Write a new file.
  *
- * The blocks are taken at the standard interleave of 10 and chained; a
- * directory slot is claimed, extending the directory by one block if every
- * slot is taken. The file must not already exist - {@link updateFile}
- * replaces one that does.
+ * The blocks are taken at interleave 10 and chained; a directory slot is
+ * claimed, extending the directory by one block if every slot is taken. The
+ * file must not already exist; {@link updateFile} replaces one that does.
  *
  * REL files are not written: their side-sector index is a second structure
  * this deck does not build. Reading one back with {@link readFile} works,
  * because the data chain is an ordinary chain.
  *
- * @param {Image}    img  the image
- * @param {string}   name the filename, 1 to 16 characters
- * @param {FileType} kind SEQ, PRG or USR
- * @param {bytes}    data the file's contents
+ * @param img {Image} the disk to change
+ * @param name {string} the filename, 1 to 16 characters
+ * @param kind {FileType} SEQ, PRG or USR
+ * @param data {bytes} the file's contents
  * @return {Image} the image with the file on it
  * @throws {Error} when the name is taken or unfit, the kind is REL or DEL, or
  *                 the disk or the directory is full
@@ -184,11 +183,18 @@ export func writeFile(img as Image, name as string, kind as FileType, data as by
     }
     def chain as list of Link;
     def cursor as Link init Link{track: 0, sector: 0};
+    # the track order depends on the image, not on where the chain is, so it
+    # is built once rather than once per block
+    def spiral as list of int init trackSearchOrder($out, 0);
+    # Reserve against a BAM sector held here and write it back once. Claiming
+    # a block through allocateSector would copy the whole image per block.
+    def bam as bytes init readSector($out, DIRECTORY_TRACK, BAM_SECTOR);
     for (def i as int init 0; $i < $blocks; $i = $i + 1) {
-        $cursor = nextFreeSector($out, $cursor, FILE_INTERLEAVE);
-        $out = allocateSector($out, $cursor.track, $cursor.sector);
+        $cursor = freeBlockNear($out, $bam, $cursor, FILE_INTERLEAVE, $spiral);
+        $bam = claimIn($bam, $out.format, $cursor.track, $cursor.sector);
         $chain[] = $cursor;
     }
+    $out = writeSector($out, DIRECTORY_TRACK, BAM_SECTOR, $bam);
     $out = storeChain($out, $chain, $data);
     return addEntry($out, $name, $kind, $chain[0], $blocks);
 }
@@ -196,12 +202,13 @@ export func writeFile(img as Image, name as string, kind as FileType, data as by
 /**
  * Write text to a new file, transcoded to PETSCII.
  *
- * @param {Image}    img  the image
- * @param {string}   name the filename, 1 to 16 characters
- * @param {FileType} kind SEQ, PRG or USR - SEQ for plain text
- * @param {string}   text the text to store
+ * @param img {Image} the disk to change
+ * @param name {string} the filename, 1 to 16 characters
+ * @param kind {FileType} SEQ, PRG or USR - SEQ for plain text
+ * @param text {string} the text to store
  * @return {Image} the image with the file on it
- * @throws {Error} when the name is taken or unfit, or the disk is full
+ * @throws {Error} when the name is taken or unfit, the kind is REL or DEL, or
+ *                 the disk or the directory is full
  * @example
  *   $img = writeText($img, "readme", FileType.Seq, "hello\nworld\n");
  */
@@ -212,10 +219,10 @@ export func writeText(img as Image, name as string, kind as FileType, text as st
 /**
  * Write a PRG, putting its load address in front of the data.
  *
- * @param {Image}  img     the image
- * @param {string} name    the filename, 1 to 16 characters
- * @param {int}    address the load address, 0 to 65535
- * @param {bytes}  data    the program bytes
+ * @param img {Image} the disk to change
+ * @param name {string}    the filename, 1 to 16 characters
+ * @param address {int} the load address, 0 to 65535
+ * @param data {bytes}    the program bytes
  * @return {Image} the image with the program on it
  * @throws {Error} when the address is out of range, or the write fails
  * @example
@@ -238,16 +245,16 @@ export func writeProgram(img as Image, name as string, address as int, data as b
  * Replace a file, or write it when it is not there yet.
  *
  * The old copy is scratched first and its blocks go back to the BAM, so the
- * new copy may well land on them. That means the update is not a transaction:
- * if it fails half-way the image you passed in is still intact - value
- * semantics see to that - but the one you would have got back is not.
+ * new copy may reuse them. If the new copy does not fit, this throws and the
+ * caller's image still holds the old one.
  *
- * @param {Image}    img  the image
- * @param {string}   name the filename
- * @param {FileType} kind SEQ, PRG or USR
- * @param {bytes}    data the new contents
+ * @param img {Image} the disk to change
+ * @param name {string} the filename
+ * @param kind {FileType} SEQ, PRG or USR
+ * @param data {bytes} the new contents
  * @return {Image} the image with the file replaced
- * @throws {Error} when the file is locked, or the new copy will not fit
+ * @throws {Error} when the file is locked, the name or kind is unfit, or the
+ *                 new copy will not fit
  * @example
  *   $img = updateFile($img, "hello", FileType.Prg, $newBytes);
  */
@@ -262,13 +269,12 @@ export func updateFile(img as Image, name as string, kind as FileType, data as b
 /**
  * Scratch a file.
  *
- * Its blocks go back to the BAM and the directory slot's type byte is zeroed
- * - which is all a real `SCRATCH` does. The name and the block pointer stay
- * in the slot until something claims it, which is why an undelete tool can
- * sometimes get a file back.
+ * Its blocks go back to the BAM and the slot's type byte is zeroed, as
+ * `SCRATCH` does. The name and the block pointer stay in the slot until it is
+ * reused. A DEL entry's slot is cleared without freeing any block.
  *
- * @param {Image}  img  the image
- * @param {string} name the file to scratch
+ * @param img {Image} the disk to change
+ * @param name {string} the file to scratch
  * @return {Image} the image without the file
  * @throws {Error} when the file is missing or locked
  * @example
@@ -296,9 +302,9 @@ export func deleteFile(img as Image, name as string) {
 /**
  * Refuse a write that cannot work before any block is touched.
  *
- * @param {Image}    img  the image
- * @param {string}   name the filename
- * @param {FileType} kind the file type asked for
+ * @param img {Image} the disk to read
+ * @param name {string} the filename
+ * @param kind {FileType} the file type asked for
  * @throws {Error} when the name is taken or unfit, or the kind cannot be written
  */
 func checkWritable(img as Image, name as string, kind as FileType) {
@@ -323,15 +329,14 @@ func checkWritable(img as Image, name as string, kind as FileType) {
  * copy of the whole image each way for every one of them is the difference
  * between a moment and several seconds.
  *
- * @param {Image}        img   the image
- * @param {list of Link} chain the blocks, in order
- * @param {bytes}        data  the payload
+ * @param img {Image} the disk to change
+ * @param chain {list of Link} the blocks, in order
+ * @param data {bytes}  the payload
  * @return {Image} the image with the blocks written
  */
 func storeChain(img as Image, chain as list of Link, data as bytes) {
-    def raw as bytes init $img.data;
+    def out as Image init $img;
     for (def i as int init 0; $i < len($chain); $i = $i + 1) {
-        def at as int init checkedOffset($img, $chain[$i].track, $chain[$i].sector);
         def start as int init $i * DATA_BYTES_PER_SECTOR;
         def take as int init len($data) - $start;
         if ($take > DATA_BYTES_PER_SECTOR) {
@@ -340,33 +345,33 @@ func storeChain(img as Image, chain as list of Link, data as bytes) {
         if ($take < 0) {
             $take = 0;
         }
+        def link as bytes init binary.make(2);
         if ($i + 1 < len($chain)) {
-            $raw[$at] = $chain[$i + 1].track;
-            $raw[$at + 1] = $chain[$i + 1].sector;
+            $link[0] = $chain[$i + 1].track;
+            $link[1] = $chain[$i + 1].sector;
         } else {
-            $raw[$at] = 0;
-            $raw[$at + 1] = $take + 1;
+            $link[1] = $take + 1;
         }
-        for (def k as int init 0; $k < $take; $k = $k + 1) {
-            $raw[$at + 2 + $k] = $data[$start + $k];
-        }
-        for (def k as int init $take; $k < DATA_BYTES_PER_SECTOR; $k = $k + 1) {
-            $raw[$at + 2 + $k] = 0;
-        }
+        # link, payload, then zero padding: joined in Go rather than copied
+        # byte by byte, and the padding clears whatever the block held before
+        def parts as list of bytes init [
+            $link,
+            $data[$start..$start + $take],
+            binary.make(DATA_BYTES_PER_SECTOR - $take)
+        ];
+        $out = writeSector($out, $chain[$i].track, $chain[$i].sector, binary.join($parts));
     }
-    def out as Image init $img;
-    $out.data = $raw;
     return $out;
 }
 
 /**
  * Claim the first free directory slot for a new file.
  *
- * @param {Image}    img    the image, already known to have a free slot
- * @param {string}   name   the filename
- * @param {FileType} kind   the file type
- * @param {Link}     first  the file's first block
- * @param {int}      blocks the file's length in blocks
+ * @param img {Image} the disk, already known to have a free slot
+ * @param name {string}   the filename
+ * @param kind {FileType}   the file type
+ * @param first {Link}  the file's first block
+ * @param blocks {int} the file's length in blocks
  * @return {Image} the image with the entry written
  * @throws {Error} when no slot is free after all
  */
@@ -393,8 +398,8 @@ func addEntry(img as Image, name as string, kind as FileType, first as Link, blo
 /**
  * Zero the type byte of one directory slot, the way `SCRATCH` does.
  *
- * @param {Image} img  the image
- * @param {int}   slot the slot to scratch
+ * @param img {Image} the disk to change
+ * @param slot {int} the slot to scratch
  * @return {Image} the image with the slot marked deleted
  * @throws {Error} when the slot is past the end of the directory chain
  */
@@ -413,13 +418,13 @@ func scratchEntry(img as Image, slot as int) {
  * is. This carries both, so a disagreement is visible rather than assumed
  * away.
  *
- * @field {Entry}        entry       the directory entry, verbatim
- * @field {list of Link} chain       every block, first to last
- * @field {int}          blocks      blocks in the chain
- * @field {int}          size        payload bytes over the whole chain
- * @field {int}          lastUsed    payload bytes in the last block
- * @field {int}          loadAddress the PRG load address, -1 when there is none
- * @field {bool}         blocksMatch whether the entry's block count is right
+ * @field entry {Entry}       the directory entry, verbatim
+ * @field chain {list of Link}       every block, first to last
+ * @field blocks {int}      blocks in the chain
+ * @field size {int}        payload bytes over the whole chain
+ * @field lastUsed {int}    payload bytes in the last block
+ * @field loadAddress {int} the PRG load address, -1 when there is none
+ * @field blocksMatch {bool} whether the entry's block count is right
  */
 export def struct FileInfo {
     entry as Entry,
@@ -438,8 +443,8 @@ export def struct FileInfo {
  * A DEL entry reports an empty chain, because the pointer in a DEL slot names
  * no file - see {@link deleteFile}.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename, matched exactly
+ * @param img {Image} the disk to read
+ * @param name {string} the filename, matched exactly
  * @return {FileInfo} the metadata
  * @throws {Error} when the file is missing or its chain is broken
  * @example
@@ -456,7 +461,7 @@ export func fileInfo(img as Image, name as string) {
 /**
  * Extract the metadata of every file on the disk, in directory order.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {list of FileInfo} one entry per live file
  * @example
  *   for (def i in listFileInfo($img)) {
@@ -474,8 +479,8 @@ export func listFileInfo(img as Image) {
 /**
  * Walk one entry's chain and measure what it points at.
  *
- * @param {Image} img   the image
- * @param {Entry} entry the directory entry
+ * @param img {Image} the disk to read
+ * @param entry {Entry} the directory entry
  * @return {FileInfo} the metadata
  * @throws {Error} when the chain loops or leaves the disk
  */
@@ -508,10 +513,10 @@ func entryInfo(img as Image, entry as Entry) {
 /**
  * The load address in the first two payload bytes of a PRG.
  *
- * @param {Image}        img   the image
- * @param {Entry}        entry the directory entry
- * @param {list of Link} chain the file's blocks
- * @param {int}          size  the payload size
+ * @param img {Image} the disk to read
+ * @param entry {Entry} the directory entry
+ * @param chain {list of Link} the file's blocks
+ * @param size {int}  the payload size
  * @return {int} the address, or -1 when the file is not a PRG or is too short
  */
 func loadAddressOf(img as Image, entry as Entry, chain as list of Link, size as int) {
@@ -525,19 +530,16 @@ func loadAddressOf(img as Image, entry as Entry, chain as list of Link, size as 
 /**
  * Overwrite part of a file in place, without moving or resizing it.
  *
- * The blocks the file already holds are patched where they sit, so the chain,
- * the directory entry and the BAM are all untouched - the difference from
- * {@link updateFile}, which scratches the old copy and allocates a new one.
- * That makes this the way to patch a program on a disk: nothing else on the
- * disk moves.
+ * The blocks the file already holds are patched where they sit; the chain,
+ * the directory entry and the BAM are untouched. {@link updateFile}, by
+ * contrast, scratches the old copy and allocates a new one.
  *
- * A patch cannot change the length. Writing past the end raises rather than
- * growing the file.
+ * A patch cannot change the length: writing past the end throws.
  *
- * @param {Image}  img    the image
- * @param {string} name   the filename, matched exactly
- * @param {int}    offset where in the file to start, 0 is the first byte
- * @param {bytes}  data   the bytes to write, at least one
+ * @param img {Image} the disk to change
+ * @param name {string}   the filename, matched exactly
+ * @param offset {int} where in the file to start, 0 is the first byte
+ * @param data {bytes}   the bytes to write, at least one
  * @return {Image} the image with the file patched
  * @throws {Error} when the file is missing, or the patch is empty or overruns
  * @example

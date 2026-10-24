@@ -1,15 +1,14 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
  * sectors example - the layer under the filesystem.
  *
- * `readSector` and `writeSector` address the disk the way the drive's
- * block commands do, and the BAM calls say what is free. Between them you
- * can look at - or build - structures CBM DOS knows nothing about, which is
- * what every copy-protection scheme on the platform did.
+ * `readSector` and `writeSector` address the disk by track and sector, as
+ * the drive's block commands do, and the BAM calls say what is free.
+ * Together they read or build structures outside the CBM DOS filesystem.
  *
  *   jennifer run examples/sectors.j
  */

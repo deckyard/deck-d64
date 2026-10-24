@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - disk geometry: how tracks, sectors and byte offsets relate.
@@ -32,9 +32,6 @@ export def const TRACKS_MAX as int init 42;
 /** Sector interleave CBM DOS uses when it chains file blocks. */
 export def const FILE_INTERLEAVE as int init 10;
 
-/** Bytes {@link findBytes} scans per pass; bounds its copying, nothing more. */
-def const SEARCH_WINDOW as int init 1024;
-
 /** Sector interleave CBM DOS uses when it chains directory blocks. */
 export def const DIRECTORY_INTERLEAVE as int init 3;
 
@@ -46,7 +43,7 @@ export def const DIRECTORY_INTERLEAVE as int init 3;
  * all. Tracks 36-42 do not exist on a stock drive; they repeat the innermost
  * zone, which is what every 40- and 42-track format does.
  *
- * @param {int} track track number, 1-42
+ * @param track {int} track number, 1-42
  * @return {int} sectors on that track, 17 to 21
  * @throws {Error} when `track` is outside 1-42
  * @example
@@ -76,7 +73,7 @@ export func sectorsPerTrack(track as int) {
  * `0` is allowed and answers `0`, because the offset of a block is the count
  * of every sector on the tracks before it.
  *
- * @param {int} tracks how many tracks, 0-42
+ * @param tracks {int} how many tracks, 0-42
  * @return {int} total sectors
  * @throws {Error} when `tracks` is outside 0-42
  * @example
@@ -110,8 +107,8 @@ export func totalSectors(tracks as int) {
  * order, so the offset is the count of every sector before this one times
  * {@link SECTOR_SIZE}.
  *
- * @param {int} track  track number, 1-42
- * @param {int} sector sector number, 0 to `sectorsPerTrack(track) - 1`
+ * @param track {int}  track number, 1-42
+ * @param sector {int} sector number, 0 to `sectorsPerTrack(track) - 1`
  * @return {int} byte offset of the block's first byte
  * @throws {Error} when the track or the sector is out of range
  * @example
@@ -133,8 +130,8 @@ export func sectorOffset(track as int, sector as int) {
  * An image may carry one error byte per block after the block data - the
  * per-sector result code a mastering tool recorded. Most images do not.
  *
- * @param {int}  tracks    how many tracks, 1-42
- * @param {bool} errorInfo true to include the trailing error-byte table
+ * @param tracks {int}    how many tracks, 1-42
+ * @param errorInfo {bool} true to include the trailing error-byte table
  * @return {int} image size in bytes
  * @throws {Error} when `tracks` is outside 1-42
  * @example
@@ -155,7 +152,7 @@ export func imageSize(tracks as int, errorInfo as bool) {
  * The six sizes in circulation are 35, 40 and 42 tracks, each with and
  * without the error-byte table.
  *
- * @param {int} size image size in bytes
+ * @param size {int} image size in bytes
  * @return {int} 35, 40, 42, or 0 when the size is not a D64
  * @example
  *   tracksForSize(174848);   # 35
@@ -175,7 +172,7 @@ export func tracksForSize(size as int) {
 /**
  * Whether an image of this size carries the trailing error-byte table.
  *
- * @param {int} size image size in bytes
+ * @param size {int} image size in bytes
  * @return {bool} true when the size includes one error byte per block
  * @throws {Error} when the size is not a D64 size at all
  * @example

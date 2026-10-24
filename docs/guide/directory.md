@@ -1,18 +1,19 @@
 <!-- SPDX-License-Identifier: LGPL-3.0-only -->
-<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu> -->
+<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev> -->
 
 # The directory
 
-A chain of blocks on track 18 from 18/1, each linked by its first two bytes.
-Eight 32-byte slots per block, 18 blocks per track: **144 files maximum**.
+A chain of blocks on track 18 starting at 18/1, each linked to the next by its
+first two bytes. Eight 32-byte slots per block, at most 18 blocks: **144 files
+maximum**.
 
 ## Listing
 
-`directoryText` renders `LOAD"$",8`:
+`directoryText` renders what `LOAD"$",8` shows:
 
 ```jennifer
 use io;
-import "@mplx/d64/" as d64;
+import "@deckyard/d64/" as d64;
 
 io.printf("%s", d64.directoryText($img));
 ```
@@ -27,11 +28,8 @@ io.printf("%s", d64.directoryText($img));
 ```
 
 Header: disk name padded to 16, ID, DOS type. Per file: blocks, quoted name,
-leading `*` if never closed, type, trailing `<` if locked. Footer: free
-blocks.
-
-Names appear in the lower-case PETSCII spelling - the same bytes a C64 shows
-upper case. See [PETSCII](petscii.md).
+`*` if never closed, type, `<` if locked. Footer: `blocksFree`. Names are in
+the lower-case spelling a C64 shows upper case; see [PETSCII](petscii.md).
 
 ## Entries
 
@@ -49,45 +47,38 @@ for (def e in d64.listFiles($img)) {
 | `closed` | false = "splat" file the drive never closed |
 | `locked` | true = `SCRATCH` refuses it, listed `<` |
 | `track`, `sector` | first block |
-| `blocks` | length in blocks |
+| `blocks` | length in blocks, as the slot records it |
 | `recordLength` | REL only |
 | `slot` | position in the chain, 0-based |
 
-Scratched slots are excluded. A scratch zeroes the type byte only - name and
-block pointer survive until the slot is reused, so the filter is on the type
-byte alone.
+`listFiles` skips scratched slots (type byte `$00`); their name and block
+pointer stay until the slot is reused.
 
-## DEL entries are slots, not files
+## DEL entries
 
-A listed `Del` entry is not a deleted file. Scene disks use them to draw a
-border in the listing, with a first-block pointer left at whatever was there,
-often the BAM. So:
+A listed `Del` entry (non-zero type byte, type bits DEL, usually `$80`) is
+not a file. Scene disks use them to draw a border in the listing, with the
+first-block pointer left at whatever was there, often the BAM. So:
 
-- `readFile` refuses a DEL entry. Following its pointer would return the
-  blocks it happens to name as if they were the file.
-- `deleteFile` removes the slot and frees nothing, because a DEL entry owns no
-  blocks. That is how border art is removed safely.
-- `fileInfo` reports an empty chain for one.
+- `readFile` throws on one; `readChain(img, track, sector)` reads what the
+  pointer names if you want it.
+- `deleteFile` clears the slot and frees no blocks. This removes border art
+  safely.
+- `fileInfo` reports an empty chain.
 
-`readChain(img, track, sector)` still reads blocks directly if you want what a
-particular pointer names.
-
-A *scratched* slot is different: its type byte is `$00` and it is not listed
-at all.
-
-## Reading a listing in the other character set
+## The other character set
 
 ```jennifer
 io.printf("%s", d64.directoryTextIn($img, d64.Charset.Unshifted));
 ```
 
-Same bytes, the other reading. See [PETSCII](petscii.md).
+The same bytes in the upper case/graphics set; see [PETSCII](petscii.md).
 
 ## Finding
 
 ```jennifer
 d64.hasFile($img, "HELLO");        # exact name, case-insensitive
-d64.findFile($img, "hello");       # raises on a miss
+d64.findFile($img, "hello");       # throws on a miss
 
 d64.findFiles($img, "*");          # every file
 d64.findFiles($img, "he*");        # prefix
@@ -95,7 +86,7 @@ d64.findFiles($img, "h?llo");      # ? is one character
 ```
 
 `*` matches the rest of the name and ends the pattern. `findFiles` returns an
-empty list on no match.
+empty list when nothing matches.
 
 ## Rename and lock
 
@@ -105,22 +96,19 @@ $img = d64.lockFile($img, "hello");
 $img = d64.unlockFile($img, "hello");
 ```
 
-Rename rewrites the slot only - chain, length and type are untouched. It
-refuses a name already present (renaming to the same name is allowed) and a
-name over 16 PETSCII characters.
-
-`deleteFile` refuses a locked file.
+`renameFile` rewrites the name only. It throws if the new name is taken
+(the same name in another case is allowed) or over 16 PETSCII bytes.
+`deleteFile` throws on a locked file.
 
 ## Chain growth
 
-One block on a fresh disk. The ninth file takes another block on track 18 at
-interleave 3, so the chain runs 18/1, 18/4, 18/7.
+The ninth file adds a directory block at interleave 3: 18/1, 18/4, 18/7, and
+so on.
 
 ```jennifer
 len(d64.directorySectors($img));   # 1 fresh, 2 after nine files
 ```
 
-A slot freed by a scratch is reused before the chain grows. When all 144 slots
-are taken, `writeFile` raises a full-directory error, distinct from disk-full.
-
-`directorySectors` raises on a chain that leaves track 18 or loops.
+Scratched slots are reused before the chain grows. With all 144 slots taken,
+`writeFile` throws a full-directory error, distinct from disk-full.
+`directorySectors` throws on a chain that leaves track 18 or loops.

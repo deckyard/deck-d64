@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - the directory: the chain of 32-byte slots on track 18.
@@ -24,15 +24,15 @@ export def enum FileType {
 /**
  * One directory entry.
  *
- * @field {string}   name          the filename, pad bytes trimmed
- * @field {FileType} kind          SEQ, PRG, USR, REL or DEL
- * @field {bool}     closed        false marks a "splat" file the drive never closed
- * @field {bool}     locked        true marks a file `SCRATCH` refuses, shown as `<`
- * @field {int}      track         track of the file's first block
- * @field {int}      sector        sector of the file's first block
- * @field {int}      blocks        length in blocks, as the directory records it
- * @field {int}      recordLength  record length, REL files only
- * @field {int}      slot          position in the directory chain, 0-based
+ * @field name {string}          the filename, pad bytes trimmed
+ * @field kind {FileType}          SEQ, PRG, USR, REL or DEL
+ * @field closed {bool}        false marks a "splat" file the drive never closed
+ * @field locked {bool}        true marks a file `SCRATCH` refuses, shown as `<`
+ * @field track {int}         track of the file's first block
+ * @field sector {int}        sector of the file's first block
+ * @field blocks {int}        length in blocks, as the directory records it
+ * @field recordLength {int}  record length, REL files only
+ * @field slot {int}          position in the directory chain, 0-based
  */
 export def struct Entry {
     name as string,
@@ -58,7 +58,7 @@ export def const MAX_DIRECTORY_ENTRIES as int init 144;
 /**
  * The name of a file type, as a directory listing spells it.
  *
- * @param {FileType} kind the file type
+ * @param kind {FileType} the file type
  * @return {string} `"del"`, `"seq"`, `"prg"`, `"usr"` or `"rel"`
  * @example
  *   fileTypeName(FileType.Prg);   # "prg"
@@ -77,7 +77,7 @@ export func fileTypeName(kind as FileType) {
 /**
  * The file type a name spells, the inverse of {@link fileTypeName}.
  *
- * @param {string} name the type name, case-insensitive
+ * @param name {string} the type name, case-insensitive
  * @return {FileType} the file type
  * @throws {Error} when the name is not one of the five
  * @example
@@ -98,7 +98,7 @@ export func fileTypeFromName(name as string) {
 /**
  * The file type the low nibble of a directory type byte encodes.
  *
- * @param {int} raw the type byte
+ * @param raw {int} the type byte
  * @return {FileType} the file type
  * @example
  *   fileTypeFromByte(0x82);   # FileType.Prg
@@ -120,9 +120,9 @@ export func fileTypeFromByte(raw as int) {
  * is what a drive leaves behind when it is reset mid-write. Bit 6 is the
  * lock, which lists as a trailing `<`.
  *
- * @param {FileType} kind   the file type
- * @param {bool}     closed true for a properly closed file
- * @param {bool}     locked true for a scratch-protected file
+ * @param kind {FileType}   the file type
+ * @param closed {bool} true for a properly closed file
+ * @param locked {bool} true for a scratch-protected file
  * @return {int} the type byte
  * @example
  *   fileTypeByte(FileType.Prg, true, false);   # $82
@@ -150,10 +150,9 @@ export func fileTypeByte(kind as FileType, closed as bool, locked as bool) {
  *
  * The chain starts at 18/1 and each block points at the next through its
  * first two bytes; a track byte of 0 ends it. The walk is bounded by the
- * track length, so a corrupt image that links a block to itself raises
- * rather than spinning.
+ * track length, so a corrupt image that links a block to itself throws.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {list of Link} the directory blocks
  * @throws {Error} when the chain loops or leaves track 18
  * @example
@@ -188,7 +187,7 @@ export func directorySectors(img as Image) {
  * byte alone, so the name and the block pointer of a deleted file stay in the
  * slot until something else claims it.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {list of Entry} the files
  * @example
  *   for (def e in listFiles($img)) { io.printf("%s\n", $e.name); }
@@ -211,8 +210,8 @@ export func listFiles(img as Image) {
 /**
  * The files whose names match a CBM DOS pattern.
  *
- * @param {Image}  img     the image
- * @param {string} pattern the pattern, `*` and `?` recognised
+ * @param img {Image} the disk to read
+ * @param pattern {string} the pattern, `*` and `?` recognised
  * @return {list of Entry} the matching files, in directory order
  * @example
  *   findFiles($img, "*");      # every file
@@ -234,8 +233,8 @@ export func findFiles(img as Image, pattern as string) {
  * The name is matched exactly, not as a pattern - use {@link findFiles} for
  * that - and case-insensitively.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename
+ * @param img {Image} the disk to read
+ * @param name {string} the filename
  * @return {bool} true when the file exists
  * @example
  *   hasFile($img, "hello");   # false on a fresh disk
@@ -247,8 +246,8 @@ export func hasFile(img as Image, name as string) {
 /**
  * The directory entry of one file.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename, matched exactly
+ * @param img {Image} the disk to read
+ * @param name {string} the filename, matched exactly
  * @return {Entry} the entry
  * @throws {Error} when no file of that name is on the disk
  * @example
@@ -271,11 +270,11 @@ export func findFile(img as Image, name as string) {
  *
  * Decodes each slot's name and nothing else. Going through {@link listFiles}
  * would build a whole `Entry` - nine fields and a decoded string - for every
- * file on the disk just to compare one of them, which is most of the cost of
+ * file on the disk to compare one of them, which is most of the cost of
  * writing a file to a full directory.
  *
- * @param {Image}  img  the image
- * @param {string} name the filename, matched case-insensitively
+ * @param img {Image} the disk to read
+ * @param name {string} the filename, matched case-insensitively
  * @return {int} the slot index, or -1
  */
 func findSlot(img as Image, name as string) {
@@ -306,7 +305,7 @@ func findSlot(img as Image, name as string) {
  * Names come back in the lower-case spelling this deck writes PETSCII in -
  * a C64 shows the same bytes in upper case.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {string} the listing, newline-terminated
  * @example
  *   io.printf("%s", directoryText($img));
@@ -322,8 +321,8 @@ export func directoryText(img as Image) {
  * the codes a shifted reading turns into runs of capitals are box drawing and
  * shades, so the frame appears instead of the letters that share those bytes.
  *
- * @param {Image}   img     the image
- * @param {Charset} charset which character set to read the names in
+ * @param img {Image} the disk to read
+ * @param charset {Charset} which character set to read the names in
  * @return {string} the listing, newline-terminated
  * @example
  *   io.printf("%s", directoryTextIn($img, Charset.Unshifted));
@@ -360,8 +359,8 @@ export func directoryTextIn(img as Image, charset as Charset) {
  * lossy for anything PETSCII cannot spell. This is the way to read a name in
  * the other character set without going back through the disk yourself.
  *
- * @param {Image} img   the image
- * @param {Entry} entry the entry, whose `slot` addresses it
+ * @param img {Image} the disk to read
+ * @param entry {Entry} the entry, whose `slot` addresses it
  * @return {bytes} 16 PETSCII bytes, pad included
  * @throws {Error} when the slot is past the end of the directory chain
  * @example
@@ -377,8 +376,8 @@ export func nameBytes(img as Image, entry as Entry) {
 /**
  * One file's line of a directory listing.
  *
- * @param {Entry}  entry the file
- * @param {string} name  the filename, already decoded in the caller's charset
+ * @param entry {Entry} the file
+ * @param name {string}  the filename, already decoded in the caller's charset
  * @return {string} the line, without its newline
  */
 func entryLine(entry as Entry, name as string) {
@@ -403,9 +402,9 @@ func entryLine(entry as Entry, name as string) {
 /**
  * Rename a file.
  *
- * @param {Image}  img     the image
- * @param {string} oldName the file to rename
- * @param {string} newName the name to give it, 1 to 16 characters
+ * @param img {Image} the disk to change
+ * @param oldName {string} the file to rename
+ * @param newName {string} the name to give it, 1 to 16 characters
  * @return {Image} the image with the entry rewritten
  * @throws {Error} when the file is missing, or the new name is taken or unfit
  * @example
@@ -423,8 +422,8 @@ export func renameFile(img as Image, oldName as string, newName as string) {
 /**
  * Lock a file so `SCRATCH` refuses it.
  *
- * @param {Image}  img  the image
- * @param {string} name the file to lock
+ * @param img {Image} the disk to change
+ * @param name {string} the file to lock
  * @return {Image} the image with the entry rewritten
  * @throws {Error} when the file is missing
  * @example
@@ -439,8 +438,8 @@ export func lockFile(img as Image, name as string) {
 /**
  * Unlock a file.
  *
- * @param {Image}  img  the image
- * @param {string} name the file to unlock
+ * @param img {Image} the disk to change
+ * @param name {string} the file to unlock
  * @return {Image} the image with the entry rewritten
  * @throws {Error} when the file is missing
  * @example
@@ -455,9 +454,9 @@ export func unlockFile(img as Image, name as string) {
 /**
  * Read one slot of a directory block.
  *
- * @param {bytes} block the directory block
- * @param {int}   index which of the eight slots
- * @param {int}   slot  the slot's position in the whole chain
+ * @param block {bytes} the directory block
+ * @param index {int} which of the eight slots
+ * @param slot {int}  the slot's position in the whole chain
  * @return {Entry} the entry
  */
 func decodeEntry(block as bytes, index as int, slot as int) {
@@ -482,8 +481,8 @@ func decodeEntry(block as bytes, index as int, slot as int) {
  * The block's own first two bytes - the chain link - are left alone, because
  * they belong to the block and not to the entry sitting at offset 0.
  *
- * @param {Image} img   the image
- * @param {Entry} entry the entry, with `slot` addressing where it goes
+ * @param img {Image} the disk to change
+ * @param entry {Entry} the entry, with `slot` addressing where it goes
  * @return {Image} the image with the slot rewritten
  * @throws {Error} when the slot is past the end of the directory chain
  */
@@ -510,8 +509,8 @@ func writeEntry(img as Image, entry as Entry) {
 /**
  * Which directory block a slot lives in.
  *
- * @param {Image} img  the image
- * @param {int}   slot the slot index, 0-based across the whole chain
+ * @param img {Image} the disk to read
+ * @param slot {int} the slot index, 0-based across the whole chain
  * @return {Link} the block holding it
  * @throws {Error} when the slot is past the end of the directory chain
  */
@@ -529,7 +528,7 @@ func entryBlockLink(img as Image, slot as int) {
  *
  * A scratched slot counts as free - claiming it is what a real drive does.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {int} the slot index, or -1
  */
 func freeSlotIndex(img as Image) {
@@ -552,15 +551,16 @@ func freeSlotIndex(img as Image) {
  * The new block is taken from track 18 at the directory interleave of 3, so
  * the chain reads the way a drive wrote it: 18/1, 18/4, 18/7 and on round.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to change
  * @return {Image} the image with a longer directory
  * @throws {Error} when track 18 has no block left
  */
 func extendDirectory(img as Image) {
     def chain as list of Link init directorySectors($img);
     def last as Link init $chain[len($chain) - 1];
-    def spare as int init freeSectorOnTrack(
-        $img,
+    def spare as int init freeSectorIn(
+        readSector($img, DIRECTORY_TRACK, BAM_SECTOR),
+        $img.format,
         DIRECTORY_TRACK,
         ($last.sector + DIRECTORY_INTERLEAVE) % sectorsPerTrack(DIRECTORY_TRACK),
         DIRECTORY_INTERLEAVE);
@@ -579,7 +579,7 @@ func extendDirectory(img as Image) {
 /**
  * The image with at least one free directory slot in it.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to change
  * @return {Image} the image, its directory extended if it had to be
  * @throws {Error} when the directory cannot grow
  */

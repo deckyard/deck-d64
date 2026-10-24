@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - PETSCII: the character set CBM DOS stores names and text in.
@@ -118,7 +118,7 @@ def const GRAPHICS as list of int init [
  * `c1541` use, under which `toPetscii("hello")` gives the bytes a C64 shows
  * as `HELLO`.
  *
- * @param {string} text the text to transcode
+ * @param text {string} the text to transcode
  * @return {bytes} the PETSCII bytes
  * @example
  *   toPetscii("hello");   # $48 $45 $4c $4c $4f
@@ -144,8 +144,8 @@ export func toPetscii(text as string) {
  * to `$ff`. A newline becomes the CBM line terminator `$0d`. Anything with no
  * PETSCII code at all becomes {@link SUBSTITUTE_BYTE}.
  *
- * @param {string}  text    the text to transcode
- * @param {Charset} charset which character set to write it in
+ * @param text {string}    the text to transcode
+ * @param charset {Charset} which character set to write it in
  * @return {bytes} the PETSCII bytes
  * @example
  *   toPetsciiIn("HELLO", Charset.Unshifted);   # $48 $45 $4c $4c $4f
@@ -165,7 +165,7 @@ export func toPetsciiIn(text as string, charset as Charset) {
  * {@link fromPetsciiIn} with `Charset.Shifted`, the inverse of
  * {@link toPetscii}.
  *
- * @param {bytes} data the PETSCII bytes
+ * @param data {bytes} the PETSCII bytes
  * @return {string} the text
  * @example
  *   fromPetscii(toPetscii("hello"));   # "hello"
@@ -182,15 +182,15 @@ export func fromPetscii(data as bytes) {
  * shades and card suits. `$a0`-`$bf` are the same block elements either way,
  * and `$60`-`$7f` mirror `$c0`-`$df`.
  *
- * A byte with no glyph in the chosen set - the colour and cursor controls -
- * becomes `?`.
+ * Bytes `$00`-`$1f` pass through as the same code points, except `$0d`,
+ * which becomes `\n`. `$80`-`$9f` (the colour and cursor controls) and
+ * `$e0`-`$fe` become `?`.
  *
- * This is a text conversion, not a byte-preserving one: use it on names and
- * on SEQ text, never on program data. {@link readFile} hands back raw bytes
- * for that.
+ * Lossy: use it on names and SEQ text, never on program data. {@link readFile}
+ * returns raw bytes.
  *
- * @param {bytes}   data    the PETSCII bytes
- * @param {Charset} charset which character set to read them in
+ * @param data {bytes}    the PETSCII bytes
+ * @param charset {Charset} which character set to read them in
  * @return {string} the text
  * @example
  *   fromPetsciiIn($raw, Charset.Unshifted);   # "╭──╮" where Shifted says "UPPN"
@@ -227,7 +227,7 @@ export func fromPetsciiIn(data as bytes, charset as Charset) {
  *
  * {@link encodeNameIn} with `Charset.Shifted`.
  *
- * @param {string} name the filename, 1 to 16 characters
+ * @param name {string} the filename, 1 to 16 characters
  * @return {bytes} 16 PETSCII bytes
  * @throws {Error} when the name is empty, too long, or contains the pad byte
  * @example
@@ -242,8 +242,8 @@ export func encodeName(name as string) {
  *
  * `Charset.Unshifted` is what writes a name made of border graphics.
  *
- * @param {string}  name    the filename, 1 to 16 characters
- * @param {Charset} charset which character set to write it in
+ * @param name {string}    the filename, 1 to 16 characters
+ * @param charset {Charset} which character set to write it in
  * @return {bytes} 16 PETSCII bytes, padded with {@link PAD_BYTE}
  * @throws {Error} when the name is empty, too long, or contains the pad byte
  * @example
@@ -274,7 +274,7 @@ export func encodeNameIn(name as string, charset as Charset) {
  *
  * {@link decodeNameIn} with `Charset.Shifted`.
  *
- * @param {bytes} raw the 16 name bytes
+ * @param raw {bytes} the 16 name bytes
  * @return {string} the filename
  * @example
  *   decodeName(encodeName("hello"));   # "hello"
@@ -289,8 +289,8 @@ export func decodeName(raw as bytes) {
  * Trailing pad bytes are dropped; a pad byte in the middle of a name is kept
  * as a space, because some mastering tools write names that way.
  *
- * @param {bytes}   raw     the 16 name bytes
- * @param {Charset} charset which character set to read them in
+ * @param raw {bytes}     the 16 name bytes
+ * @param charset {Charset} which character set to read them in
  * @return {string} the filename
  * @example
  *   decodeNameIn(nameBytes($img, $entry), Charset.Unshifted);
@@ -318,8 +318,8 @@ export func decodeNameIn(raw as bytes, charset as Charset) {
  * runs once per character and the letter and punctuation ranges are almost all
  * of any real text.
  *
- * @param {int}     cp      the code point
- * @param {Charset} charset which character set to write it in
+ * @param cp {int}      the code point
+ * @param charset {Charset} which character set to write it in
  * @return {int} the PETSCII byte, or {@link SUBSTITUTE_BYTE}
  */
 func petsciiFromCodepoint(cp as int, charset as Charset) {
@@ -369,8 +369,8 @@ func petsciiFromCodepoint(cp as int, charset as Charset) {
  * Scanned rather than looked up: this runs only for a code point that is not
  * text, which is rare enough that a 64-entry walk costs nothing.
  *
- * @param {int}     cp      the code point
- * @param {Charset} charset which character set to write it in
+ * @param cp {int}      the code point
+ * @param charset {Charset} which character set to write it in
  * @return {int} the PETSCII byte, or {@link SUBSTITUTE_BYTE}
  */
 func graphicByte(cp as int, charset as Charset) {
@@ -395,8 +395,8 @@ func graphicByte(cp as int, charset as Charset) {
  * catch-all; the letter ranges must precede the graphics table, which is what
  * the two character sets disagree about.
  *
- * @param {int}     b       the PETSCII byte
- * @param {Charset} charset which character set to read it in
+ * @param b {int}       the PETSCII byte
+ * @param charset {Charset} which character set to read it in
  * @return {int} the code point, or `?` when the byte has no glyph
  */
 func codepointFromPetscii(b as int, charset as Charset) {
@@ -452,8 +452,8 @@ func codepointFromPetscii(b as int, charset as Charset) {
  * exactly one character. The comparison is case-insensitive, because a
  * PETSCII name has only one case on screen.
  *
- * @param {string} pattern the pattern, `*` and `?` recognised
- * @param {string} name    the filename to test
+ * @param pattern {string} the pattern, `*` and `?` recognised
+ * @param name {string}    the filename to test
  * @return {bool} true when the name matches
  * @example
  *   matchName("he*", "hello");     # true

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - white-box tests for the files topic.
@@ -625,4 +625,22 @@ func decoratedDisk() {
     # give back the block the entry owned before it became art, so the disk is
     # consistent the way a mastering tool would leave it
     return freeSector($img, $owned.track, $owned.sector);
+}
+
+func testReadChainFollowsAFileToItsLastByte() {
+    def img as Image init writeFile(formatDisk("d", "01"), "big", FileType.Prg, counting(600));
+    def entry as Entry init findFile($img, "big");
+    testing.assertEqual(readChain($img, $entry.track, $entry.sector), counting(600));
+}
+
+func testReadChainRefusesAChainThatLoops() {
+    testing.assertThrows("readChainThatLoops", ERROR_KIND);
+}
+
+func readChainThatLoops() {
+    def img as Image init oneBlockDisk();
+    def block as bytes init readSector($img, 17, 0);
+    $block[0] = 17;
+    $block[1] = 0;
+    readChain(writeSector($img, 17, 0, $block), 17, 0);
 }

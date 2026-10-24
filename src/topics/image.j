@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - the image itself: bytes in, bytes out, one block at a time.
@@ -12,10 +12,10 @@
  * returns a fresh `Image` and leaves the one you passed in alone, so the
  * calling shape is always `$img = something($img, ...)`.
  *
- * @field {bytes}      data      the image, block data then the optional error table
- * @field {int}        tracks    35, 40 or 42
- * @field {bool}       errorInfo true when `data` carries one error byte per block
- * @field {DiskFormat} format    which BAM layout the disk uses
+ * @field data {bytes}      the image, block data then the optional error table
+ * @field tracks {int}    35, 40 or 42
+ * @field errorInfo {bool} true when `data` carries one error byte per block
+ * @field format {DiskFormat}    which BAM layout the disk uses
  */
 export def struct Image {
     data as bytes,
@@ -27,8 +27,8 @@ export def struct Image {
 /**
  * A track/sector pair: the link CBM DOS chains blocks with.
  *
- * @field {int} track  track number, 1-42
- * @field {int} sector sector number within the track
+ * @field track {int}  track number, 1-42
+ * @field sector {int} sector number within the track
  */
 export def struct Link {
     track as int,
@@ -44,7 +44,7 @@ export def const ERROR_OK as int init 0x01;
  * The geometry comes from the length - the six D64 sizes are unambiguous -
  * and the BAM layout from {@link detectFormat}.
  *
- * @param {bytes} raw the whole image file
+ * @param raw {bytes} the whole image file
  * @return {Image} the image
  * @throws {Error} when the buffer is not one of the six D64 sizes
  * @example
@@ -68,7 +68,7 @@ export func fromBytes(raw as bytes) {
 /**
  * The image as a byte buffer, ready to write to a file.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {bytes} the whole image file
  * @example
  *   fs.writeBytes("out.d64", toBytes($img));
@@ -80,7 +80,7 @@ export func toBytes(img as Image) {
 /**
  * Read a D64 image from a file.
  *
- * @param {string} path the file to read
+ * @param path {string} the file to read
  * @return {Image} the image
  * @throws {Error} when the file is missing or is not a D64
  * @example
@@ -96,8 +96,8 @@ export func open(path as string) {
 /**
  * Write an image to a file, replacing whatever is there.
  *
- * @param {Image}  img  the image to write
- * @param {string} path the file to write
+ * @param img {Image} the disk to write
+ * @param path {string} the file to write
  * @throws {Error} when the file cannot be written
  * @example
  *   save($img, "out.d64");
@@ -110,12 +110,11 @@ export func save(img as Image, path as string) {
 /**
  * Override the BAM layout {@link fromBytes} guessed.
  *
- * {@link detectFormat} reads the image and infers; when you know the image's
- * provenance you can say so outright. Nothing on the disk changes - only how
- * the allocator reads sector 18/0 from here on.
+ * No byte of the disk changes; only how the BAM in sector 18/0 is read from
+ * here on.
  *
- * @param {Image}      img    the image
- * @param {DiskFormat} format the layout to use
+ * @param img {Image} the disk to re-read
+ * @param format {DiskFormat} the layout to use
  * @return {Image} the same image, read under the new layout
  * @example
  *   $img = withFormat($img, DiskFormat.DolphinDos);
@@ -129,7 +128,7 @@ export func withFormat(img as Image, format as DiskFormat) {
 /**
  * How many blocks the image holds, free or not.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to read
  * @return {int} 683, 768 or 802
  * @example
  *   blockCount(formatDisk("d", "01"));   # 683
@@ -141,9 +140,9 @@ export func blockCount(img as Image) {
 /**
  * Read one 256-byte block.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number, 1 to the image's track count
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to read
+ * @param track {int}  track number, 1 to the image's track count
+ * @param sector {int} sector number within the track
  * @return {bytes} the 256 bytes of the block
  * @throws {Error} when the track or the sector is outside the image
  * @example
@@ -158,10 +157,10 @@ export func readSector(img as Image, track as int, sector as int) {
 /**
  * Write one 256-byte block.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number, 1 to the image's track count
- * @param {int}   sector sector number within the track
- * @param {bytes} block  exactly 256 bytes
+ * @param img {Image} the disk to change
+ * @param track {int}  track number, 1 to the image's track count
+ * @param sector {int} sector number within the track
+ * @param block {bytes}  exactly 256 bytes
  * @return {Image} the image with the block replaced
  * @throws {Error} when the block is the wrong size or the address is outside
  * @example
@@ -172,12 +171,12 @@ export func writeSector(img as Image, track as int, sector as int, block as byte
         fail("a block is 256 bytes, not " + convert.toString(len($block)));
     }
     def at as int init checkedOffset($img, $track, $sector);
-    def data as bytes init $img.data;
-    for (def i as int init 0; $i < SECTOR_SIZE; $i = $i + 1) {
-        $data[$at + $i] = $block[$i];
-    }
+    # Splice with two slices and a join: that is three memory moves in Go
+    # against 256 interpreter iterations, and measures about three times
+    # faster even for a single block.
+    def parts as list of bytes init [$img.data[0..$at], $block, $img.data[$at + SECTOR_SIZE..]];
     def out as Image init $img;
-    $out.data = $data;
+    $out.data = binary.join($parts);
     return $out;
 }
 
@@ -189,9 +188,9 @@ export func writeSector(img as Image, track as int, sector as int, block as byte
  * data block, and so on. An image with no error table reports `$01` for
  * every block.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to read
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {int} the error code, `$01` when the block is good
  * @throws {Error} when the address is outside the image
  * @example
@@ -208,10 +207,10 @@ export func sectorError(img as Image, track as int, sector as int) {
 /**
  * Record the read result of one block.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
- * @param {int}   code   the error code, `$01` for a good block
+ * @param img {Image} the disk to change
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
+ * @param code {int}   the error code, `$01` for a good block
  * @return {Image} the image with the code recorded
  * @throws {Error} when the image has no error table, or the address is outside
  * @example
@@ -238,7 +237,7 @@ export func setSectorError(img as Image, track as int, sector as int, code as in
  * A no-op on an image that has no error table, which is why
  * {@link formatDiskWith} can call it unconditionally.
  *
- * @param {Image} img the image
+ * @param img {Image} the disk to change
  * @return {Image} the image with a clean error table
  * @example
  *   $img = clearErrorTable($img);
@@ -247,22 +246,19 @@ export func clearErrorTable(img as Image) {
     if (not $img.errorInfo) {
         return $img;
     }
-    def data as bytes init $img.data;
     def base as int init blockCount($img) * SECTOR_SIZE;
-    for (def i as int init 0; $i < blockCount($img); $i = $i + 1) {
-        $data[$base + $i] = ERROR_OK;
-    }
+    def parts as list of bytes init [$img.data[0..$base], binary.make(blockCount($img), ERROR_OK)];
     def out as Image init $img;
-    $out.data = $data;
+    $out.data = binary.join($parts);
     return $out;
 }
 
 /**
  * The byte offset of a block, checked against this image's geometry.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to read
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {int} the offset of the block's first byte
  * @throws {Error} when the address is outside the image
  */
@@ -277,9 +273,9 @@ func checkedOffset(img as Image, track as int, sector as int) {
 /**
  * The offset of a block's byte in the trailing error table.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
+ * @param img {Image} the disk to read
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
  * @return {int} the offset of the error byte
  */
 func errorByteOffset(img as Image, track as int, sector as int) {
@@ -292,8 +288,8 @@ func errorByteOffset(img as Image, track as int, sector as int) {
  * Blocks are stored back to back in track order, so this is the index the
  * range calls address blocks by.
  *
- * @param {int} track  track number, 1-42
- * @param {int} sector sector number within the track
+ * @param track {int}  track number, 1-42
+ * @param sector {int} sector number within the track
  * @return {int} the block number
  * @throws {Error} when the track or the sector is out of range
  * @example
@@ -307,7 +303,7 @@ export func blockNumber(track as int, sector as int) {
 /**
  * The track and sector of a block number, the inverse of {@link blockNumber}.
  *
- * @param {int} number the block number, 0 to 801
+ * @param number {int} the block number, 0 to 801
  * @return {Link} the address
  * @throws {Error} when the number is outside every D64 geometry
  * @example
@@ -330,13 +326,13 @@ export func blockLink(number as int) {
 /**
  * Read a run of consecutive blocks.
  *
- * The run follows the image's own order: past the last sector of a track it
- * continues at sector 0 of the next one. **The BAM is not consulted** - free,
- * allocated and unreachable blocks all read alike, which is the point.
+ * Past the last sector of a track the run continues at sector 0 of the next
+ * one. The BAM is not consulted: free, allocated and orphaned blocks read
+ * alike.
  *
- * @param {Image} img   the image
- * @param {Link}  first where to start
- * @param {int}   count how many blocks, 1 or more
+ * @param img {Image} the disk to read
+ * @param first {Link} where to start
+ * @param count {int} how many blocks, 1 or more
  * @return {bytes} `count * 256` bytes
  * @throws {Error} when the run starts outside the image or reaches past its end
  * @example
@@ -351,13 +347,12 @@ export func readBlocks(img as Image, first as Link, count as int) {
 /**
  * Write a run of consecutive blocks.
  *
- * The counterpart to {@link readBlocks}, and just as indifferent to the BAM:
- * it will overwrite a block a file is using. Pair it with
- * {@link allocateSector} when the blocks are meant to stay claimed.
+ * Ignores the BAM like {@link readBlocks}: it overwrites a block a file is
+ * using. Call {@link allocateSector} for blocks that must stay claimed.
  *
- * @param {Image} img   the image
- * @param {Link}  first where to start
- * @param {bytes} data  the blocks, a whole multiple of 256 bytes
+ * @param img {Image} the disk to change
+ * @param first {Link} where to start
+ * @param data {bytes}  the blocks, a whole multiple of 256 bytes
  * @return {Image} the image with the run replaced
  * @throws {Error} when `data` is not whole blocks, or the run leaves the image
  * @example
@@ -369,21 +364,18 @@ export func writeBlocks(img as Image, first as Link, data as bytes) {
     }
     def count as int init len($data) // SECTOR_SIZE;
     def at as int init checkedRun($img, $first, $count) * SECTOR_SIZE;
-    def raw as bytes init $img.data;
-    for (def i as int init 0; $i < len($data); $i = $i + 1) {
-        $raw[$at + $i] = $data[$i];
-    }
+    def parts as list of bytes init [$img.data[0..$at], $data, $img.data[$at + len($data)..]];
     def out as Image init $img;
-    $out.data = $raw;
+    $out.data = binary.join($parts);
     return $out;
 }
 
 /**
  * The block number a run starts at, checked against the image.
  *
- * @param {Image} img   the image
- * @param {Link}  first where the run starts
- * @param {int}   count how many blocks
+ * @param img {Image} the disk to read
+ * @param first {Link} where the run starts
+ * @param count {int} how many blocks
  * @return {int} the first block's number
  * @throws {Error} when the count is not positive or the run leaves the image
  */
@@ -403,15 +395,14 @@ func checkedRun(img as Image, first as Link, count as int) {
 /**
  * Overwrite part of one block, leaving the rest of it alone.
  *
- * The read-modify-write a hex edit would otherwise be. Like every block call
- * it ignores the BAM: it will patch a block a file is using, which is usually
- * the point.
+ * Ignores the BAM like every block call, so it patches a block a file is
+ * using.
  *
- * @param {Image} img    the image
- * @param {int}   track  track number
- * @param {int}   sector sector number within the track
- * @param {int}   offset where in the block to start, 0 to 255
- * @param {bytes} data   the bytes to write, at least one
+ * @param img {Image} the disk to change
+ * @param track {int}  track number
+ * @param sector {int} sector number within the track
+ * @param offset {int} where in the block to start, 0 to 255
+ * @param data {bytes}   the bytes to write, at least one
  * @return {Image} the image with the block patched
  * @throws {Error} when the patch is empty or reaches past the end of the block
  * @example
@@ -442,9 +433,9 @@ export func patchSector(img as Image, track as int, sector as int, offset as int
  * the last block; the trailing error table is not addressed here - use
  * {@link sectorError} for that.
  *
- * @param {Image} img    the image
- * @param {int}   offset the first byte
- * @param {int}   length how many bytes, 1 or more
+ * @param img {Image} the disk to read
+ * @param offset {int} the first byte
+ * @param length {int} how many bytes, 1 or more
  * @return {bytes} the bytes
  * @throws {Error} when the range leaves the block area
  * @example
@@ -458,13 +449,12 @@ export func readAt(img as Image, offset as int, length as int) {
 /**
  * Write bytes at an image offset, ignoring block boundaries.
  *
- * The counterpart to {@link readAt}. A run that crosses a block boundary
- * writes straight through it, track/sector links included - this is the raw
- * view, not the filesystem one.
+ * A run that crosses a block boundary writes straight through it, track/sector
+ * links included.
  *
- * @param {Image} img    the image
- * @param {int}   offset the first byte
- * @param {bytes} data   the bytes to write, at least one
+ * @param img {Image} the disk to change
+ * @param offset {int} the first byte
+ * @param data {bytes}   the bytes to write, at least one
  * @return {Image} the image with the range replaced
  * @throws {Error} when the range leaves the block area
  * @example
@@ -484,14 +474,14 @@ export func writeAt(img as Image, offset as int, data as bytes) {
 /**
  * Every offset at which a byte pattern occurs on the disk.
  *
- * Searches the block area, one linear pass, matches may overlap. Turn an
- * offset into an address with {@link blockLink}:
+ * Searches the block area, not the error table, in one linear pass; matches
+ * may overlap. Turn an offset into an address with {@link blockLink}:
  *
  *   def where as Link init blockLink($at // SECTOR_SIZE);
  *   def inBlock as int init $at % SECTOR_SIZE;
  *
- * @param {Image} img     the image
- * @param {bytes} pattern the bytes to look for, at least one
+ * @param img {Image} the disk to read
+ * @param pattern {bytes} the bytes to look for, at least one
  * @return {list of int} the offsets, ascending; empty when there is no match
  * @throws {Error} when the pattern is empty or longer than the disk
  * @example
@@ -506,68 +496,29 @@ export func findBytes(img as Image, pattern as bytes) {
     if ($span > $limit) {
         fail("a pattern of " + convert.toString($span) + " bytes is longer than the disk");
     }
-    # binary.indexOf scans in Go, ~100x faster than comparing here - but it
-    # cannot start at an offset, so each call is handed a fresh slice. Slicing
-    # the whole unsearched tail every time is quadratic in the number of hits
-    # (2s for a one-byte pattern on a blank disk); a fixed window bounds the
-    # copying to the window size instead, and costs one pass for the usual
-    # case of few matches.
+    # One linear pass: binary.indexOf scans in Go and resumes from an offset,
+    # so finding every match costs no more than finding the first. A match
+    # reaching into the trailing error table ends the search, and so does the
+    # first miss, because matches come back in ascending order.
     def hits as list of int;
-    def start as int init 0;
-    while ($start + $span <= $limit) {
-        def stop as int init $start + SEARCH_WINDOW + $span - 1;
-        if ($stop > $limit) {
-            $stop = $limit;
+    def at as int init 0;
+    while ($at + $span <= $limit) {
+        def found as int init binary.indexOf($img.data, $pattern, $at);
+        if ($found < 0 or $found + $span > $limit) {
+            return $hits;
         }
-        def window as bytes init $img.data[$start..$stop];
-        # append the window's own hits rather than threading the accumulator
-        # through the call: a `list of int` parameter is deep-copied, so
-        # passing the growing result in would be quadratic
-        for (def at in findInWindow($window, $pattern, $start)) {
-            $hits[] = $at;
-        }
-        $start = $start + SEARCH_WINDOW;
+        $hits[] = $found;
+        $at = $found + 1;
     }
     return $hits;
 }
 
 /**
- * Collect the matches that begin inside one search window.
- *
- * A window reaches `span - 1` bytes past its own end so a match straddling
- * the boundary is whole, but reports only matches that *begin* before the
- * next window starts - so the windows partition the disk and nothing is
- * counted twice.
- *
- * @param {bytes} window  the bytes to search
- * @param {bytes} pattern the bytes to look for
- * @param {int}   base    the window's offset in the image
- * @return {list of int} the matches beginning in this window
- */
-func findInWindow(window as bytes, pattern as bytes, base as int) {
-    def out as list of int;
-    def span as int init len($pattern);
-    def cursor as int init 0;
-    while ($cursor + $span <= len($window)) {
-        def found as int init binary.indexOf($window[$cursor..len($window)], $pattern);
-        if ($found < 0) {
-            return $out;
-        }
-        if ($cursor + $found >= SEARCH_WINDOW) {
-            return $out;
-        }
-        $out[] = $base + $cursor + $found;
-        $cursor = $cursor + $found + 1;
-    }
-    return $out;
-}
-
-/**
  * Check a byte range against the image's block area.
  *
- * @param {Image} img    the image
- * @param {int}   offset the first byte
- * @param {int}   length how many bytes
+ * @param img {Image} the disk to read
+ * @param offset {int} the first byte
+ * @param length {int} how many bytes
  * @throws {Error} when the range is empty or leaves the block area
  */
 func checkedRange(img as Image, offset as int, length as int) {

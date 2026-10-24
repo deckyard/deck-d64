@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - formatting a disk, and the four BAM layouts a D64 may carry.
@@ -8,10 +8,9 @@
 /**
  * Which BAM layout a disk uses.
  *
- * A stock 1541 formats 35 tracks and its BAM has room for exactly those. The
- * speeder cartridges of the late eighties formatted 40, and each parked the
- * five extra BAM entries somewhere else in sector 18/0 - three incompatible
- * answers to the same problem, all still found in the wild:
+ * A stock 1541 formats 35 tracks and its BAM has entries for exactly those.
+ * The speeder DOSes formatted 40 and each put the five extra entries in a
+ * different place in sector 18/0:
  *
  *   `Cbm`         the stock layout; tracks 36-42 have no BAM entry at all
  *   `SpeedDos`    entries for tracks 36-40 at `$c0`-`$d3`
@@ -34,12 +33,12 @@ export def enum DiskFormat {
  * A zero field takes its default, so `FormatOptions{}` is a stock 35-track
  * CBM disk with no error table, blocks filled with `$00`.
  *
- * @field {int}        tracks    35, 40 or 42; 0 means the format's own default
- * @field {DiskFormat} format    which BAM layout to write
- * @field {bool}       errorInfo true to append the per-block error table
- * @field {string}     dosType   the two-character DOS type; "" means "2a"
- * @field {int}        fill      the byte every block is set to, 0 to 255
- * @field {FormatMode} mode      how much to rewrite; only {@link reformatWith}
+ * @field tracks {int}    35, 40 or 42; 0 means the format's own default
+ * @field format {DiskFormat}    which BAM layout to write
+ * @field errorInfo {bool} true to append the per-block error table
+ * @field dosType {string}   the two-character DOS type; "" means "2a"
+ * @field fill {int}      the byte every block is set to, 0 to 255
+ * @field mode {FormatMode}      how much to rewrite; only {@link reformatWith}
  *                               reads it - a new image has nothing to preserve
  */
 export def struct FormatOptions {
@@ -63,8 +62,7 @@ export def struct FormatOptions {
  *            other block keeps its bytes, so the files are unreachable rather
  *            than erased. The drive calls this a soft format; it is instant.
  *
- * The zero value is `Full`: the destructive reading is the predictable one,
- * and `Quick` is worth asking for explicitly.
+ * The zero value is `Full`.
  */
 export def enum FormatMode {
     Full,
@@ -92,7 +90,7 @@ export def const HEADER_OFFSET_PROLOGIC as int init 0xa4;
 /**
  * The name of a disk format, as the docs and the CLI spell it.
  *
- * @param {DiskFormat} format the format
+ * @param format {DiskFormat} the BAM layout
  * @return {string} `"cbm"`, `"speeddos"`, `"dolphindos"` or `"prologicdos"`
  * @example
  *   formatName(DiskFormat.DolphinDos);   # "dolphindos"
@@ -110,7 +108,7 @@ export func formatName(format as DiskFormat) {
 /**
  * The disk format a name spells, the inverse of {@link formatName}.
  *
- * @param {string} name the format name, case-insensitive
+ * @param name {string} the format name, case-insensitive
  * @return {DiskFormat} the format
  * @throws {Error} when the name is not one of the four
  * @example
@@ -130,7 +128,7 @@ export func formatFromName(name as string) {
 /**
  * The track count a format is meant for.
  *
- * @param {DiskFormat} format the format
+ * @param format {DiskFormat} the BAM layout
  * @return {int} 35 for `Cbm`, 40 for the three speeder formats
  * @example
  *   formatTracks(DiskFormat.SpeedDos);   # 40
@@ -145,7 +143,7 @@ export func formatTracks(format as DiskFormat) {
 /**
  * Where the disk header - name, ID and DOS type - sits in the BAM sector.
  *
- * @param {DiskFormat} format the format
+ * @param format {DiskFormat} the BAM layout
  * @return {int} `$90`, or `$a4` under PrologicDOS
  * @example
  *   headerOffsetFor(DiskFormat.PrologicDos);   # 164
@@ -164,8 +162,8 @@ export func headerOffsetFor(format as DiskFormat) {
  * the format, and tracks 41-42 have no BAM entry under any of them - a
  * 42-track image is addressed sector by sector, never through the allocator.
  *
- * @param {DiskFormat} format the format
- * @param {int}        track  track number, 1-42
+ * @param format {DiskFormat} the BAM layout
+ * @param track {int}  track number, 1-42
  * @return {int} the byte offset, or -1 when the track has no BAM entry
  * @throws {Error} when `track` is outside 1-42
  * @example
@@ -201,11 +199,11 @@ export func bamEntryOffset(format as DiskFormat, track as int) {
  * The two that leave the header alone are told apart by which extra BAM
  * region carries a plausible free-sector count.
  *
- * A guess, not a certainty - some images carry neither region. Override it
- * with {@link withFormat} when you know better than the heuristic.
+ * A heuristic: an image with neither region reads as `Cbm`. Override the
+ * result with {@link withFormat}.
  *
- * @param {bytes} bam    the 256 bytes of sector 18/0
- * @param {int}   tracks the image's track count
+ * @param bam {bytes}    the 256 bytes of sector 18/0
+ * @param tracks {int} the image's track count
  * @return {DiskFormat} the detected format
  * @example
  *   detectFormat(readSector($img, 18, 0), $img.tracks);
@@ -233,8 +231,8 @@ export func detectFormat(bam as bytes, tracks as int) {
  * up there - and at least one must be non-zero, so an untouched run of $00
  * does not read as a BAM.
  *
- * @param {bytes} bam    the BAM sector
- * @param {int}   offset where the five entries would start
+ * @param bam {bytes}    the BAM sector
+ * @param offset {int} where the five entries would start
  * @return {bool} true when the region is plausible
  */
 func looksLikeBamRegion(bam as bytes, offset as int) {
@@ -274,12 +272,12 @@ export func defaultFormatOptions() {
 /**
  * Format a blank 35-track CBM disk.
  *
- * The short form of {@link formatDiskWith} and the one to reach for: it is
- * what `NEW0:NAME,ID` on a 1541 produces - an empty BAM with tracks 1-35 all
- * free, sector 18/0 and 18/1 allocated, and one empty directory sector.
+ * What `NEW0:NAME,ID` on a 1541 produces: tracks 1-35 free except 18/0 and
+ * 18/1, and one empty directory block. {@link formatDiskWith} with
+ * {@link defaultFormatOptions}.
  *
- * @param {string} name the disk name, 1 to 16 characters
- * @param {string} id   the two-character disk ID
+ * @param name {string} the disk name, 1 to 16 characters
+ * @param id {string}   the disk ID, one or two characters
  * @return {Image} the formatted image
  * @throws {Error} when the name or the ID will not fit
  * @example
@@ -293,24 +291,23 @@ export func formatDisk(name as string, id as string) {
 /**
  * Format a blank disk to an explicit geometry and BAM layout.
  *
- * Picking a 40-track geometry with `DiskFormat.Cbm` is legal and produces an
- * image a stock drive reads - but tracks 36-40 then have nowhere to be
- * recorded, so the allocator leaves them alone and {@link blocksFree} does
- * not count them. Choose one of the three speeder layouts to use them.
+ * A 40-track geometry with `DiskFormat.Cbm` is allowed and a stock drive
+ * reads it, but tracks 36-40 have no BAM entry, so the allocator never uses
+ * them and {@link blocksFree} does not count them. A speeder layout with
+ * fewer than 40 tracks throws.
  *
- * Tracks 41 and 42 are outside every BAM ever defined. They exist in the
- * image and {@link readSector} and {@link writeSector} reach them, but no
- * file is ever placed there.
+ * Tracks 41 and 42 are outside every BAM layout. {@link readSector} and
+ * {@link writeSector} reach them; no file is placed there.
  *
- * @param {FormatOptions} options geometry and layout; zero fields take defaults
- * @param {string}        name    the disk name, 1 to 16 characters
- * @param {string}        id      the two-character disk ID
+ * @param options {FormatOptions} geometry and layout; zero fields take defaults
+ * @param name {string}    the disk name, 1 to 16 characters
+ * @param id {string}      the disk ID, one or two characters
  * @return {Image} the formatted image
  * @throws {Error} when the options, the name or the ID will not fit
  * @example
- *   def opts as FormatOptions init FormatOptions{
- *       tracks: 40, format: DiskFormat.SpeedDos, errorInfo: false, dosType: ""
- *   };
+ *   def opts as FormatOptions init defaultFormatOptions();
+ *   $opts.tracks = 40;
+ *   $opts.format = DiskFormat.SpeedDos;
  *   def img as Image init formatDiskWith($opts, "40 track", "sd");
  *   blocksFree($img);   # 749
  */
@@ -336,9 +333,9 @@ export func formatDiskWith(options as FormatOptions, name as string, id as strin
  * blocks are set to `$00`. {@link quickFormat} is the instant alternative
  * that leaves the blocks alone.
  *
- * @param {Image}  img  the image to wipe
- * @param {string} name the new disk name, 1 to 16 characters
- * @param {string} id   the new two-character disk ID
+ * @param img {Image} the disk to wipe
+ * @param name {string} the new disk name, 1 to 16 characters
+ * @param id {string}   the new disk ID, one or two characters
  * @return {Image} a blank image with the same geometry
  * @throws {Error} when the name or the ID will not fit
  * @example
@@ -351,17 +348,16 @@ export func reformat(img as Image, name as string, id as string) {
 /**
  * Erase the BAM and the directory, leaving every other block untouched.
  *
- * `N0:NAME` on a 1541 - the soft format. The disk lists as empty and every
- * block reads as free, but the bytes of the old files are still there, so
- * this is not erasure. It is instant, where a full format re-writes the whole
- * surface.
+ * `N0:NAME` on a 1541, the soft format. The disk lists as empty and every
+ * block is free, but the old files' bytes are still there: this does not
+ * erase them.
  *
- * The disk ID is kept, because the drive does not re-stamp it either. Two
- * disks quick-formatted from the same original share an ID, which is how a
- * real 1541 comes to read a stale BAM after a disk swap.
+ * The disk ID and DOS type are kept, as on the drive. Two disks
+ * quick-formatted from the same original share an ID, which is how a real
+ * 1541 comes to use a stale BAM after a disk swap.
  *
- * @param {Image}  img  the image to erase
- * @param {string} name the new disk name, 1 to 16 characters
+ * @param img {Image} the disk to erase
+ * @param name {string} the new disk name, 1 to 16 characters
  * @return {Image} the image with an empty directory
  * @throws {Error} when the name will not fit
  * @example
@@ -377,15 +373,14 @@ export func quickFormat(img as Image, name as string) {
 /**
  * Re-format a disk, choosing how much of it to rewrite and with what.
  *
- * Only `mode`, `fill` and `dosType` are read from the options: geometry and
- * BAM layout always come from the image, because changing those makes a
- * different disk rather than a blank one - that is {@link formatDiskWith}.
+ * Only `mode`, `fill` and `dosType` are read from the options; geometry and
+ * BAM layout come from the image (use {@link formatDiskWith} to change them).
  * A `dosType` of `""` keeps the image's own.
  *
- * @param {Image}         img     the image to format
- * @param {FormatOptions} options mode, fill byte and DOS type
- * @param {string}        name    the new disk name, 1 to 16 characters
- * @param {string}        id      the new two-character disk ID
+ * @param img {Image} the disk to format
+ * @param options {FormatOptions} mode, fill byte and DOS type
+ * @param name {string}    the new disk name, 1 to 16 characters
+ * @param id {string}      the new disk ID, one or two characters
  * @return {Image} the formatted image
  * @throws {Error} when the name, the ID or the fill byte will not fit
  * @example
@@ -408,7 +403,7 @@ export func reformatWith(img as Image, options as FormatOptions, name as string,
 /**
  * Format options that wipe with one byte, geometry left to the caller.
  *
- * @param {int} fill the byte every block is set to
+ * @param fill {int} the byte every block is set to
  * @return {FormatOptions} the options
  */
 func fullOptions(fill as int) {
@@ -425,8 +420,8 @@ func fullOptions(fill as int) {
 /**
  * Options with the geometry and layout of an image already in hand.
  *
- * @param {Image}         img     the image being formatted
- * @param {FormatOptions} options what the caller asked for
+ * @param img {Image} the disk being formatted
+ * @param options {FormatOptions} what the caller asked for
  * @return {FormatOptions} the options, anchored to the image
  */
 func imageOptions(img as Image, options as FormatOptions) {
@@ -443,8 +438,8 @@ func imageOptions(img as Image, options as FormatOptions) {
 /**
  * Set every block of an image to one byte, error table untouched.
  *
- * @param {Image} img  the image
- * @param {int}   fill the byte, 0 to 255
+ * @param img {Image} the disk to change
+ * @param fill {int} the byte, 0 to 255
  * @return {Image} the image with every block filled
  * @throws {Error} when the fill byte is not a byte
  */
@@ -452,13 +447,11 @@ func fillBlocks(img as Image, fill as int) {
     if ($fill < 0 or $fill > 0xff) {
         fail("a fill byte is 0 to 255, not " + convert.toString($fill));
     }
-    def raw as bytes init $img.data;
     def limit as int init blockCount($img) * SECTOR_SIZE;
-    for (def i as int init 0; $i < $limit; $i = $i + 1) {
-        $raw[$i] = $fill;
-    }
+    # the error table sits past the blocks and keeps its own codes
+    def parts as list of bytes init [binary.make($limit, $fill), $img.data[$limit..]];
     def out as Image init $img;
-    $out.data = $raw;
+    $out.data = binary.join($parts);
     return $out;
 }
 
@@ -467,10 +460,10 @@ func fillBlocks(img as Image, fill as int) {
  *
  * The whole of a quick format, and the last step of a full one.
  *
- * @param {Image}         img  the image
- * @param {FormatOptions} opts the resolved options
- * @param {string}        name the disk name
- * @param {string}        id   the disk ID
+ * @param img {Image} the disk to change
+ * @param opts {FormatOptions} the resolved options
+ * @param name {string} the disk name
+ * @param id {string}   the disk ID
  * @return {Image} the image with a blank filesystem on it
  * @throws {Error} when the name or the ID will not fit
  */
@@ -488,7 +481,7 @@ func writeSystemBlocks(img as Image, opts as FormatOptions, name as string, id a
 /**
  * Fill in the zero fields of a {@link FormatOptions} and check the rest.
  *
- * @param {FormatOptions} options what the caller asked for
+ * @param options {FormatOptions} what the caller asked for
  * @return {FormatOptions} the same options with defaults applied
  * @throws {Error} when the geometry and the layout disagree
  */
@@ -520,9 +513,9 @@ func resolveFormatOptions(options as FormatOptions) {
 /**
  * The BAM sector of a freshly formatted disk.
  *
- * @param {FormatOptions} opts the resolved options
- * @param {string}        name the disk name
- * @param {string}        id   the disk ID
+ * @param opts {FormatOptions} the resolved options
+ * @param name {string} the disk name
+ * @param id {string}   the disk ID
  * @return {bytes} 256 bytes ready for sector 18/0
  * @throws {Error} when the name or the ID will not fit
  */
@@ -548,9 +541,9 @@ func blankBamSector(opts as FormatOptions, name as string, id as string) {
  * the track length is set - a set bit means "free". Bits past the end of the
  * track stay clear, the way a real drive leaves them.
  *
- * @param {bytes} bam     the BAM sector
- * @param {int}   at      offset of the track's four bytes
- * @param {int}   sectors how many sectors the track has
+ * @param bam {bytes}     the BAM sector
+ * @param at {int}      offset of the track's four bytes
+ * @param sectors {int} how many sectors the track has
  * @return {bytes} the BAM sector with the entry written
  */
 func writeFreeTrackEntry(bam as bytes, at as int, sectors as int) {
@@ -569,10 +562,10 @@ func writeFreeTrackEntry(bam as bytes, at as int, sectors as int) {
 /**
  * Stamp the disk name, ID, DOS type and their `$a0` filler into a BAM sector.
  *
- * @param {bytes}         bam  the BAM sector
- * @param {FormatOptions} opts the resolved options
- * @param {string}        name the disk name
- * @param {string}        id   the disk ID
+ * @param bam {bytes}  the BAM sector
+ * @param opts {FormatOptions} the resolved options
+ * @param name {string} the disk name
+ * @param id {string}   the disk ID
  * @return {bytes} the BAM sector with the header written
  * @throws {Error} when the name or the ID will not fit
  */
@@ -601,7 +594,7 @@ func writeDiskHeader(bam as bytes, opts as FormatOptions, name as string, id as 
 /**
  * Encode a disk ID into the two bytes the header holds.
  *
- * @param {string} id the ID, one or two characters
+ * @param id {string} the ID, one or two characters
  * @return {bytes} exactly two PETSCII bytes, pad-filled when the ID is short
  * @throws {Error} when the ID is empty or longer than two characters
  */

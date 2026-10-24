@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: LGPL-3.0-only -->
-<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu> -->
+<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev> -->
 
 # Directories
 
 ## Source
 
 `src/d64.j` is the only compilable unit. It `use`s the libraries and
-`include`s every topic, which is a textual splice: the module boundary and
-every `export` is that one file. A topic cannot be linted or tested alone,
-because in isolation its calls into its siblings read as undefined.
+`include`s every topic as a textual splice, so the module boundary and every
+`export` belong to that one file. A topic cannot be linted or tested alone: in
+isolation its calls into its siblings are undefined.
 
 ```
 src/d64.j              the entry module - the one consumers import
@@ -24,7 +24,7 @@ src/topics/directory.j the chain of 32-byte slots on track 18
 src/topics/files.j     block chains: read, write, replace, scratch
 ```
 
-Each `src/topics/X.j` has a co-located `X_test.j`, spliced into
+Each `src/topics/X.j` has a `X_test.j` beside it, spliced into
 `src/d64_test.j` the same way. `tools/check-overlays.sh` fails a topic
 without one.
 
@@ -43,11 +43,11 @@ site/                  the built book, gitignored
 
 ## Generated files
 
-Never hand-edit these; `tools/inject-version.sh` overwrites them.
+`tools/inject-version.sh` overwrites it; do not edit it by hand.
 
 | File | Holds | Stamped by |
 |---|---|---|
 | `src/topics/version.j` | `VERSION` | every build, from the git tags |
 
-`deck.toml`'s `package.version` is the opposite: authored and committed,
-because jvc resolves against it. See [Versioning](versioning.md).
+`deck.toml`'s `package.version` is authored and committed, because jvc
+resolves against it. See [Versioning](versioning.md).

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - white-box tests for the bam topic.
@@ -280,6 +280,44 @@ func setDiskNameTooLong() {
 
 func setDiskIdTooLong() {
     setDiskId(formatDisk("d", "01"), "abc");
+}
+
+func testAOneCharacterDiskIdIsPadded() {
+    # the header always holds two ID bytes; a short ID is padded with $a0
+    def img as Image init formatDisk("d", "a");
+    testing.assertEqual(diskId($img), "a");
+    def bam as bytes init readSector($img, 18, 0);
+    testing.assertEqual($bam[0xa2], 0x41);
+    testing.assertEqual($bam[0xa3], PAD_BYTE);
+
+    $img = setDiskId($img, "b");
+    testing.assertEqual(diskId($img), "b");
+    testing.assertEqual(readSector($img, 18, 0)[0xa3], PAD_BYTE);
+}
+
+func testAnEmptyDiskIdIsRefused() {
+    testing.assertThrows("setDiskIdEmpty", ERROR_KIND);
+}
+
+func setDiskIdEmpty() {
+    setDiskId(formatDisk("d", "01"), "");
+}
+
+func testHeaderEditsStayInTheHeaderUnderPrologicDos() {
+    # PrologicDOS keeps the BAM entries for tracks 36-40 at $90-$a3, where the
+    # stock header sits; renaming must write at $a4 and leave them alone
+    def img as Image init fortyTrackDisk(DiskFormat.PrologicDos);
+    def extra as bytes init readSector($img, 18, 0)[0x90..0xa4];
+    $img = setDiskName($img, "renamed");
+    $img = setDiskId($img, "pd");
+    testing.assertEqual(diskName($img), "renamed");
+    testing.assertEqual(diskId($img), "pd");
+    def bam as bytes init readSector($img, 18, 0);
+    testing.assertEqual($bam[0xa4], 0x52);
+    testing.assertEqual($bam[0xb6], 0x50);
+    testing.assertEqual($bam[0xb7], 0x44);
+    testing.assertEqual($bam[0x90..0xa4], $extra);
+    testing.assertEqual(blocksFree($img), 749);
 }
 
 func fortyTrackDisk(format as DiskFormat) {

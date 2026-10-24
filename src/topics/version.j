@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 # ci-no-overlay
 
@@ -12,4 +12,4 @@
  * Injected from the git tag the build came from: `0.2.0` on a release,
  * `0.2.0-dev+14.9ebf3dd` anywhere else. See tools/version.sh.
  */
-export def const VERSION as string init "0.1.0-dev+1.1ad8fdb";
+export def const VERSION as string init "0.1.0";

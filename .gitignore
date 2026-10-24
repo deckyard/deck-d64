@@ -1,2 +1,7 @@
 # the built book
 site/
+dist/
+vendor/
+.jennifer-src/
+.ci-fixtures/
+.jfmt-*.tmp

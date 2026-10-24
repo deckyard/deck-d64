@@ -1,15 +1,15 @@
 <!-- SPDX-License-Identifier: LGPL-3.0-only -->
-<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu> -->
+<!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev> -->
 
 # Blocks and the BAM
 
-Below the filesystem is a flat array of 256-byte blocks. `readSector` and
-`writeSector` address it as the drive's block commands do; the BAM calls say
-what is free.
+Under the filesystem is a flat array of 256-byte blocks. `readSector` and
+`writeSector` address it by track and sector, as the drive's block commands
+do; the BAM calls say what is free.
 
 ## Geometry
 
-Constant bit rate on a constant-speed spindle: outer tracks hold more sectors.
+Outer tracks hold more sectors (see [zone bit recording](../reference/hardware.md#gcr-and-mfm)).
 
 | Tracks | Sectors each | Blocks |
 |---|---:|---:|
@@ -20,10 +20,10 @@ Constant bit rate on a constant-speed spindle: outer tracks hold more sectors.
 | 36-40 | 17 | 85 |
 | 41-42 | 17 | 34 |
 
-Blocks are stored in track order, then sector order.
+The image stores blocks in track order, then sector order.
 
 ```jennifer
-import "@mplx/d64/" as d64;
+import "@deckyard/d64/" as d64;
 
 d64.sectorsPerTrack(1);     # 21
 d64.sectorsPerTrack(18);    # 19
@@ -43,14 +43,12 @@ $block[0] = 0xc7;
 $img = d64.writeSector($img, 1, 0, $block);
 ```
 
-`readSector` returns exactly 256 bytes; `writeSector` requires exactly 256.
-Both check the address against the image's geometry - and **neither consults
-the BAM**. A free block, an allocated block and a block no directory entry
-points at all read and write alike.
+`writeSector` throws unless given exactly 256 bytes. Both throw on an address
+outside the image. **Neither consults the BAM.**
 
 ## Block ranges
 
-Blocks are contiguous in the image, so a run can be addressed as one.
+Blocks are contiguous in the image, so a run reads or writes in one call.
 
 ```jennifer
 def run as bytes init d64.readBlocks($img, d64.Link{track: 18, sector: 0}, 2);
@@ -60,14 +58,11 @@ $img = d64.writeBlocks($img, d64.Link{track: 1, sector: 0}, $run);
 ```
 
 A run continues past the last sector of a track at sector 0 of the next one,
-and raises if it reaches past the last block of the image. `writeBlocks` takes
-a whole multiple of 256 bytes.
+and throws if it reaches past the last block of the image. `writeBlocks` takes
+a non-empty whole multiple of 256 bytes.
 
-Like the single-block calls these ignore the BAM entirely: `writeBlocks` will
-overwrite a file's blocks without complaint. Pair them with `allocateSector`
-when the blocks are meant to stay claimed.
-
-Blocks also have a flat number, which is what a range walks:
+These ignore the BAM too. Call `allocateSector` for blocks that must stay
+claimed. Each block also has a flat number, 0 at 1/0:
 
 ```jennifer
 d64.blockNumber(1, 0);     # 0
@@ -75,7 +70,7 @@ d64.blockNumber(18, 0);    # 357 - the BAM
 d64.blockLink(357);        # Link{track: 18, sector: 0}
 ```
 
-Dumping a whole image through the range API round-trips:
+The whole block area as one run:
 
 ```jennifer
 def all as bytes init d64.readBlocks($img, d64.Link{track: 1, sector: 0},
@@ -86,7 +81,8 @@ def all as bytes init d64.readBlocks($img, d64.Link{track: 1, sector: 0},
 ## The BAM
 
 Four bytes per track: a free-sector count, then a 24-bit map where a **set bit
-means free**. `blocksFree` sums the counts, excluding track 18.
+means free**. `blocksFree` sums the counts of every track but 18;
+`trackBlocksFree` reads one count byte as stored.
 
 ```jennifer
 d64.blocksFree($img);              # 664 on a fresh 35-track disk
@@ -101,12 +97,12 @@ $img = d64.allocateSector($img, 1, 0);
 $img = d64.freeSector($img, 1, 0);
 ```
 
-Both move the bit and fix the count. Both raise when the block is already in
-the requested state: a double allocate means two chains share a block, a
+Both update the bit and the count. Both throw when the block is already in
+the requested state: a double allocate would let two chains share a block, a
 double free means count and bitmap have drifted.
 
-A track with no BAM entry - 36-42 under `Cbm`, 41-42 under every layout -
-reports "not free" and refuses allocation. See
+A block on a track with no BAM entry (36-42 under `Cbm`, 41-42 under every
+layout) is never free, and `allocateSector` and `freeSector` throw on it. See
 [Formatting a disk](format.md).
 
 ## The allocator
@@ -120,26 +116,27 @@ def next as d64.Link init d64.nextFreeSector($img, $first, d64.FILE_INTERLEAVE);
 # 17/10
 ```
 
-**Interleave.** Within a track the search steps `interleave` sectors - 10 for
-files, 3 for directory blocks - so the next block reaches the head just after
-the drive has processed the previous one. When the step does not cover the
-track (interleave 10 shares a factor with 18 sectors) a linear sweep picks up
-the rest, so any track with a free block yields one.
+**Interleave.** On `near`'s track the search starts `interleave` sectors past
+`near` and steps by `interleave` (10 for files, 3 for directory blocks), so the
+next block reaches the head after the drive has handled the previous one. When
+the steps miss sectors (10 and 18 share a factor) a linear sweep covers them.
+`interleave` below 1 throws.
 
-**Spiral.** A full track moves the search outward from track 18: 17, 19, 16,
-20, 15, 21, … Track 18 never appears.
+**Spiral.** When `near`'s track is full, or `near` is `Link{track: 0, sector: 0}`,
+the search moves outward from track 18: 17, 19, 16, 20, 15, 21, and so on,
+starting each track at sector 0. Track 18 and tracks without a BAM entry are
+never used.
 
 ```jennifer
 d64.trackSearchOrder($img, 0);    # [17, 19, 16, 20, 15, 21, ...]
 d64.trackSearchOrder($img, 30);   # [30, 17, 19, 16, ...]
 ```
 
-`nextFreeSector` raises when nothing is left - the disk-full error
-`writeFile` reports.
+`nextFreeSector` throws when nothing is free.
 
 ## Outside the filesystem
 
-Claim a block and write to it; the directory never learns of it.
+A block claimed in the BAM and written without a directory entry:
 
 ```jennifer
 $img = d64.allocateSector($img, 1, 0);
@@ -149,6 +146,5 @@ $block[1] = 0x00;
 $img = d64.writeSector($img, 1, 0, $block);
 ```
 
-The BAM keeps the filesystem off the block; `readSector` gets it back. Tracks
-41 and 42 have no BAM entry under any layout, so nothing lands there by
-accident.
+The allocator will not use the block, and `readSector` reads it back. Tracks
+41 and 42 are outside every BAM layout, so files never land there.

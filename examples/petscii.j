@@ -1,15 +1,14 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
  * petscii example - the character set CBM DOS stores names and text in.
  *
- * PETSCII and ASCII agree on the digits and the punctuation and disagree
- * about case, so the transcoder swaps it: what you write lower case is what
- * a C64 shows upper case. Round-tripping is exact for anything PETSCII can
- * spell, and everything else becomes `?`.
+ * The transcoder swaps case: lower-case text becomes the bytes a C64 shows
+ * upper case. Anything PETSCII can spell round-trips; everything else
+ * becomes `?`.
  *
  *   jennifer run examples/petscii.j
  */

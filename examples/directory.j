@@ -1,14 +1,14 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
  * directory example - listing a disk the way a 1541 does.
  *
- * `directoryText` renders what `LOAD"$",8` shows; `listFiles` hands back the
- * same thing as typed `Entry` values, and `findFiles` filters them with the
- * drive's own `*` and `?` patterns.
+ * `directoryText` renders what `LOAD"$",8` shows; `listFiles` returns the
+ * same files as `Entry` values, and `findFiles` filters them with the
+ * drive's `*` and `?` patterns.
  *
  *   jennifer run examples/directory.j
  */

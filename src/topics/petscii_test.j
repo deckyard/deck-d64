@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - white-box tests for the petscii topic.
@@ -79,6 +79,28 @@ func testFromPetsciiSubstitutesWhatHasNoGlyph() {
     testing.assertEqual(fromPetscii($raw), "??");
     testing.assertEqual(fromPetsciiIn($raw, Charset.Unshifted), "??");
 }
+
+func testControlCodesBelowTwentyPassThrough() {
+    # $00-$1f map to the same code points both ways, except $0d, the CBM
+    # line terminator, which is a newline
+    def raw as bytes;
+    $raw[] = 0x05;
+    $raw[] = 0x0d;
+    $raw[] = 0x1f;
+    testing.assertEqual(fromPetscii($raw), "\u0005\n\u001f");
+    testing.assertEqual(fromPetsciiIn($raw, Charset.Unshifted), "\u0005\n\u001f");
+    testing.assertEqual(toPetscii("\u0005\n\u001f"), $raw);
+}
+
+# Left out of the suite: PETSCII $e0-$fe draw the same glyphs as $a0-$be, but
+# codepointFromPetscii mirrors only $60-$7f and decodes $e0-$fe as "?".
+# func testBytesE0ToFEMirrorTheBlockElements() {
+#     def raw as bytes;
+#     $raw[] = 0xe1;
+#     def mirror as bytes;
+#     $mirror[] = 0xa1;
+#     testing.assertEqual(fromPetscii($raw), fromPetscii($mirror));
+# }
 
 func testTheBlockElementsReadTheSameInBothSets() {
     # $a0-$bf are not letters in either set, so they decode alike

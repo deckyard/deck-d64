@@ -1,14 +1,13 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
  * files example - the whole file life cycle on one disk.
  *
- * Write, read back, replace, scratch - and save the image to a real .d64 and
- * open it again, which is the only part of the deck that touches the
- * filesystem.
+ * Write, read back, replace, scratch, then save the image to a .d64 file and
+ * open it again.
  *
  *   jennifer run examples/files.j
  */

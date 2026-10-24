@@ -1,14 +1,14 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
  * format example - making blank disks, stock and extended.
  *
  * `formatDisk` is `NEW0:NAME,ID` on a 1541: 35 tracks, 664 blocks free.
- * `formatDiskWith` takes the geometry and the BAM layout, which is how you
- * reach the five extra tracks a speeder cartridge formatted.
+ * `formatDiskWith` takes the geometry and the BAM layout, including the
+ * three 40-track speeder layouts.
  *
  *   jennifer run examples/format.j
  */

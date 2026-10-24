@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 # d64 - white-box tests for the format topic.
@@ -383,6 +383,19 @@ func testFullFormatTakesAFillByte() {
     testing.assertEqual(len(listFiles($img)), 0);
     testing.assertEqual(readSector($img, DIRECTORY_TRACK, BAM_SECTOR)[2], DOS_VERSION_BYTE);
     testing.assertEqual(readSector($img, DIRECTORY_TRACK, FIRST_DIRECTORY_SECTOR)[1], 0xff);
+}
+
+func testACustomDosTypeIsStampedAndKept() {
+    def opts as FormatOptions init defaultFormatOptions();
+    $opts.dosType = "2b";
+    def img as Image init formatDiskWith($opts, "d", "01");
+    testing.assertEqual(dosType($img), "2b");
+    def bam as bytes init readSector($img, 18, 0);
+    testing.assertEqual($bam[0xa5], 0x32);
+    testing.assertEqual($bam[0xa6], 0x42);
+    # a reformat with no DOS type of its own keeps the image's
+    testing.assertEqual(dosType(reformat($img, "e", "02")), "2b");
+    testing.assertEqual(dosType(quickFormat($img, "e")), "2b");
 }
 
 func testQuickFormatLeavesTheBlocksAlone() {
