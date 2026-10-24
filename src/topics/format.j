@@ -547,16 +547,14 @@ func blankBamSector(opts as FormatOptions, name as string, id as string) {
  * @return {bytes} the BAM sector with the entry written
  */
 func writeFreeTrackEntry(bam as bytes, at as int, sectors as int) {
-    def out as bytes init $bam;
-    $out[$at] = $sectors;
-    $out[$at + 1] = 0x00;
-    $out[$at + 2] = 0x00;
-    $out[$at + 3] = 0x00;
-    for (def s as int init 0; $s < $sectors; $s = $s + 1) {
-        def byteAt as int init $at + 1 + ($s // 8);
-        $out[$byteAt] = setBit($out[$byteAt], $s % 8);
-    }
-    return $out;
+    # Sector s is bit s % 8 of byte s // 8, so the map is one mask written
+    # least significant byte first.
+    def mask as int init (1 << $sectors) - 1;
+    $bam[$at] = $sectors;
+    $bam[$at + 1] = $mask & 0xff;
+    $bam[$at + 2] = ($mask >> 8) & 0xff;
+    $bam[$at + 3] = ($mask >> 16) & 0xff;
+    return $bam;
 }
 
 /**

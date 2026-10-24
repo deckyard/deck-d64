@@ -503,3 +503,15 @@ func threeFiles() {
     $img = writeText($img, "beta", FileType.Prg, "two\n");
     return writeText($img, "gamma", FileType.Usr, "three\n");
 }
+
+func testAFreeTrackEntryIsTheSectorMask() {
+    def bam as bytes init zeroBytes(SECTOR_SIZE);
+    $bam = writeFreeTrackEntry($bam, 4, 21);
+    $bam = writeFreeTrackEntry($bam, 8, 19);
+    $bam = writeFreeTrackEntry($bam, 12, 17);
+    testing.assertEqual([$bam[4], $bam[5], $bam[6], $bam[7]], [21, 0xff, 0xff, 0x1f]);
+    testing.assertEqual([$bam[8], $bam[9], $bam[10], $bam[11]], [19, 0xff, 0xff, 0x07]);
+    testing.assertEqual([$bam[12], $bam[13], $bam[14], $bam[15]], [17, 0xff, 0xff, 0x01]);
+    testing.assertEqual($bam[3], 0);
+    testing.assertEqual($bam[16], 0);
+}

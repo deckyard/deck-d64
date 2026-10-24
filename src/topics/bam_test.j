@@ -343,3 +343,39 @@ func fillTrack(img as Image, track as int) {
     }
     return $out;
 }
+
+func testReleaseInUndoesClaimIn() {
+    def img as Image init formatDisk("d", "01");
+    def bam as bytes init readSector($img, DIRECTORY_TRACK, BAM_SECTOR);
+    def claimed as bytes init claimIn($bam, DiskFormat.Cbm, 1, 5);
+    testing.assertEqual($claimed[4], 20);
+    def released as bytes init releaseIn($claimed, DiskFormat.Cbm, 1, 5);
+    testing.assertEqual($released[4], 21);
+    testing.assertTrue($released == $bam);
+}
+
+func testReleaseInRefusesAFreeBlockOrAMissingEntry() {
+    testing.assertThrows("releaseAFreeBlock", ERROR_KIND);
+    testing.assertThrows("releaseWithoutABamEntry", ERROR_KIND);
+}
+
+func releaseAFreeBlock() {
+    def img as Image init formatDisk("d", "01");
+    releaseIn(readSector($img, DIRECTORY_TRACK, BAM_SECTOR), DiskFormat.Cbm, 1, 0);
+}
+
+func releaseWithoutABamEntry() {
+    def img as Image init formatDisk("d", "01");
+    releaseIn(readSector($img, DIRECTORY_TRACK, BAM_SECTOR), DiskFormat.Cbm, 36, 0);
+}
+
+func testFreeSectorInTrustsTheMapNotTheCount() {
+    def bam as bytes init zeroBytes(SECTOR_SIZE);
+    # track 1's entry is at 4: a count of 21 over an empty map is still full
+    $bam[4] = 21;
+    testing.assertEqual(freeSectorIn($bam, DiskFormat.Cbm, 1, 0, 1), -1);
+    # sector 20 is bit 4 of the third map byte; a count of 0 does not hide it
+    $bam[4] = 0;
+    $bam[7] = 0x10;
+    testing.assertEqual(freeSectorIn($bam, DiskFormat.Cbm, 1, 0, 1), 20);
+}

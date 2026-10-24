@@ -194,9 +194,12 @@ export func writeFile(img as Image, name as string, kind as FileType, data as by
         $bam = claimIn($bam, $out.format, $cursor.track, $cursor.sector);
         $chain[] = $cursor;
     }
+    # Neither the BAM nor the data blocks are directory blocks, so the slot
+    # found before writing them is still the free one afterwards.
+    def slot as int init freeSlotIndex($out);
     $out = writeSector($out, DIRECTORY_TRACK, BAM_SECTOR, $bam);
     $out = storeChain($out, $chain, $data);
-    return addEntry($out, $name, $kind, $chain[0], $blocks);
+    return addEntry($out, $slot, $name, $kind, $chain[0], $blocks);
 }
 
 /**
@@ -292,11 +295,13 @@ export func deleteFile(img as Image, name as string) {
         # hand the filesystem its own directory back as free space.
         return scratchEntry($img, $entry.slot);
     }
-    def out as Image init $img;
+    # Free the whole chain in one detached copy of the BAM sector and write it
+    # back once: freeSector per block copies the image per block.
+    def bam as bytes init readSector($img, DIRECTORY_TRACK, BAM_SECTOR);
     for (def link in chainOf($img, $entry.track, $entry.sector)) {
-        $out = freeSector($out, $link.track, $link.sector);
+        $bam = releaseIn($bam, $img.format, $link.track, $link.sector);
     }
-    return scratchEntry($out, $entry.slot);
+    return scratchEntry(writeSector($img, DIRECTORY_TRACK, BAM_SECTOR, $bam), $entry.slot);
 }
 
 /**
@@ -324,10 +329,10 @@ func checkWritable(img as Image, name as string, kind as FileType) {
 /**
  * Write a payload across a chain of blocks that is already allocated.
  *
- * Writes straight into one copy of the image rather than going through
- * {@link writeSector} per block: a disk-filling file is 664 blocks, and a
- * copy of the whole image each way for every one of them is the difference
- * between a moment and several seconds.
+ * Builds every block, then splices them into the image in one pass in offset
+ * order. {@link writeSector} per block copies the whole image per block, which
+ * for a disk-filling file of 664 blocks is the difference between a moment and
+ * several seconds.
  *
  * @param img {Image} the disk to change
  * @param chain {list of Link} the blocks, in order
@@ -335,7 +340,8 @@ func checkWritable(img as Image, name as string, kind as FileType) {
  * @return {Image} the image with the blocks written
  */
 func storeChain(img as Image, chain as list of Link, data as bytes) {
-    def out as Image init $img;
+    def blockAt as map of int to bytes init {};
+    def offsets as list of int;
     for (def i as int init 0; $i < len($chain); $i = $i + 1) {
         def start as int init $i * DATA_BYTES_PER_SECTOR;
         def take as int init len($data) - $start;
@@ -359,15 +365,28 @@ func storeChain(img as Image, chain as list of Link, data as bytes) {
             $data[$start..$start + $take],
             binary.make(DATA_BYTES_PER_SECTOR - $take)
         ];
-        $out = writeSector($out, $chain[$i].track, $chain[$i].sector, binary.join($parts));
+        def at as int init checkedOffset($img, $chain[$i].track, $chain[$i].sector);
+        $blockAt[$at] = binary.join($parts);
+        $offsets[] = $at;
     }
-    return $out;
+    # One splice in offset order; the tail keeps the error table, if any.
+    def parts as list of bytes;
+    def from as int init 0;
+    for (def offset in lists.sort($offsets)) {
+        $parts[] = $img.data[$from..$offset];
+        $parts[] = $blockAt[$offset];
+        $from = $offset + SECTOR_SIZE;
+    }
+    $parts[] = $img.data[$from..];
+    $img.data = binary.join($parts);
+    return $img;
 }
 
 /**
  * Claim the first free directory slot for a new file.
  *
  * @param img {Image} the disk, already known to have a free slot
+ * @param slot {int} the free slot, from `freeSlotIndex`; -1 means none
  * @param name {string}   the filename
  * @param kind {FileType}   the file type
  * @param first {Link}  the file's first block
@@ -375,8 +394,13 @@ func storeChain(img as Image, chain as list of Link, data as bytes) {
  * @return {Image} the image with the entry written
  * @throws {Error} when no slot is free after all
  */
-func addEntry(img as Image, name as string, kind as FileType, first as Link, blocks as int) {
-    def slot as int init freeSlotIndex($img);
+func addEntry(
+    img as Image,
+    slot as int,
+    name as string,
+    kind as FileType,
+    first as Link,
+    blocks as int) {
     if ($slot < 0) {
         fail("the directory is full: all " + convert.toString(MAX_DIRECTORY_ENTRIES) +
             " slots are taken");

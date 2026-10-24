@@ -111,6 +111,14 @@ def const GRAPHICS as list of int init [
     0x25e5
 ];
 
+# Every byte decoded once at load, per character set, so decoding a name is a
+# list lookup per byte. A pad byte reads as a space here; decodeNameIn drops
+# the trailing ones before it looks anything up.
+def const SHIFTED_TEXT as list of string init decodeTable(Charset.Shifted);
+def const UNSHIFTED_TEXT as list of string init decodeTable(Charset.Unshifted);
+# The shifted table lower-cased, for comparing names without decoding them.
+def const SHIFTED_FOLDED as list of string init foldTable();
+
 /**
  * Transcode text to PETSCII, reading it in the lower/upper character set.
  *
@@ -296,19 +304,97 @@ export func decodeName(raw as bytes) {
  *   decodeNameIn(nameBytes($img, $entry), Charset.Unshifted);
  */
 export func decodeNameIn(raw as bytes, charset as Charset) {
+    def end as int init nameEnd($raw);
+    def out as list of string;
+    if ($charset == Charset.Shifted) {
+        for (def i as int init 0; $i < $end; $i = $i + 1) {
+            $out[] = SHIFTED_TEXT[$raw[$i]];
+        }
+    } else {
+        for (def i as int init 0; $i < $end; $i = $i + 1) {
+            $out[] = UNSHIFTED_TEXT[$raw[$i]];
+        }
+    }
+    return strings.join($out, "");
+}
+
+/**
+ * Where a padded name ends: the offset of its trailing run of pad bytes.
+ *
+ * The usual name is text followed by pad bytes to the end, which one native
+ * search finds; anything else falls back to walking back from the end.
+ *
+ * @param raw {bytes} the name bytes
+ * @return {int} the length without the trailing pad bytes
+ */
+func nameEnd(raw as bytes) {
+    def first as int init binary.indexOf($raw, binary.make(1, PAD_BYTE));
+    if ($first < 0) {
+        return len($raw);
+    }
+    if ($raw[$first..] == binary.make(len($raw) - $first, PAD_BYTE)) {
+        return $first;
+    }
     def end as int init len($raw);
     while ($end > 0 and $raw[$end - 1] == PAD_BYTE) {
         $end = $end - 1;
     }
+    return $end;
+}
+
+/**
+ * Every byte's text in the lower/upper set, lower-cased.
+ *
+ * @return {list of string} 256 entries, indexed by byte
+ */
+func foldTable() {
     def out as list of string;
+    for (def b as int init 0; $b < 256; $b = $b + 1) {
+        $out[] = strings.lower(SHIFTED_TEXT[$b]);
+    }
+    return $out;
+}
+
+/**
+ * Whether 16 name bytes decode to `wanted`, ignoring case.
+ *
+ * The same answer as comparing `strings.lower(decodeName(raw))` with `wanted`,
+ * one byte at a time and stopping at the first difference. Every byte decodes
+ * to exactly one character, so the lengths can be compared first.
+ *
+ * @param raw {bytes} the 16 name bytes
+ * @param wanted {list of string} the name lower-cased, one character per entry
+ * @return {bool} true when the name matches
+ */
+func nameMatches(raw as bytes, wanted as list of string) {
+    def end as int init nameEnd($raw);
+    if ($end != len($wanted)) {
+        return false;
+    }
     for (def i as int init 0; $i < $end; $i = $i + 1) {
-        if ($raw[$i] == PAD_BYTE) {
-            $out[] = " ";
-        } else {
-            $out[] = convert.fromCodepoint(codepointFromPetscii($raw[$i], $charset));
+        if (SHIFTED_FOLDED[$raw[$i]] != $wanted[$i]) {
+            return false;
         }
     }
-    return strings.join($out, "");
+    return true;
+}
+
+/**
+ * Every byte's text in one character set, for the decode tables.
+ *
+ * @param charset {Charset} which character set to decode in
+ * @return {list of string} 256 entries, indexed by byte
+ */
+func decodeTable(charset as Charset) {
+    def out as list of string;
+    for (def b as int init 0; $b < 256; $b = $b + 1) {
+        if ($b == PAD_BYTE) {
+            $out[] = " ";
+        } else {
+            $out[] = convert.fromCodepoint(codepointFromPetscii($b, $charset));
+        }
+    }
+    return $out;
 }
 
 /**

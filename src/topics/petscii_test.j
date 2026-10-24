@@ -285,3 +285,46 @@ func testTheDefaultsStayShifted() {
         decodeName(encodeName("hi")),
         decodeNameIn(encodeName("hi"), Charset.Shifted));
 }
+
+func testTheDecodeTablesMatchTheDecoder() {
+    for (def b as int init 0; $b < 256; $b = $b + 1) {
+        if ($b == PAD_BYTE) {
+            testing.assertEqual(SHIFTED_TEXT[$b], " ");
+            testing.assertEqual(UNSHIFTED_TEXT[$b], " ");
+        } else {
+            testing.assertEqual(
+                SHIFTED_TEXT[$b],
+                convert.fromCodepoint(codepointFromPetscii($b, Charset.Shifted)));
+            testing.assertEqual(
+                UNSHIFTED_TEXT[$b],
+                convert.fromCodepoint(codepointFromPetscii($b, Charset.Unshifted)));
+            testing.assertEqual(SHIFTED_FOLDED[$b], strings.lower(SHIFTED_TEXT[$b]));
+        }
+    }
+}
+
+func testNameEndDropsOnlyTheTrailingPadRun() {
+    def raw as bytes init binary.make(4, PAD_BYTE);
+    testing.assertEqual(nameEnd($raw), 0);
+    $raw[0] = 0x41;
+    $raw[1] = 0x42;
+    testing.assertEqual(nameEnd($raw), 2);
+    # a pad byte inside the name is part of it
+    $raw[1] = PAD_BYTE;
+    $raw[2] = 0x42;
+    testing.assertEqual(nameEnd($raw), 3);
+    $raw[3] = 0x43;
+    testing.assertEqual(nameEnd($raw), 4);
+}
+
+func testNameMatchesIgnoresCaseAndTrailingPadding() {
+    def raw as bytes init encodeName("Hello");
+    testing.assertTrue(nameMatches($raw, strings.chars("hello")));
+    testing.assertFalse(nameMatches($raw, strings.chars("hell")));
+    testing.assertFalse(nameMatches($raw, strings.chars("hellox")));
+    # $a0 inside a name reads as a space
+    def gap as bytes init encodeName("ab");
+    $gap[1] = PAD_BYTE;
+    $gap[2] = 0x42;
+    testing.assertTrue(nameMatches($gap, strings.chars("a b")));
+}

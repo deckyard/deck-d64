@@ -644,3 +644,16 @@ func readChainThatLoops() {
     $block[1] = 0;
     readChain(writeSector($img, 17, 0, $block), 17, 0);
 }
+
+func testDeletingAChainWithAFreeBlockFails() {
+    testing.assertThrows("deleteAFileWithAFreedBlock", ERROR_KIND);
+}
+
+func deleteAFileWithAFreedBlock() {
+    def img as Image init formatDisk("d", "01");
+    $img = writeFile($img, "victim", FileType.Seq, binary.make(254 * 3, 1));
+    def entry as Entry init findFile($img, "victim");
+    # free the first block behind the file's back: its chain now holds a free block
+    $img = freeSector($img, $entry.track, $entry.sector);
+    deleteFile($img, "victim");
+}

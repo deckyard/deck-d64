@@ -14,7 +14,6 @@
 
 use testing;
 use strings;
-use lists;
 use convert;
 
 include "topics/core_test.j";

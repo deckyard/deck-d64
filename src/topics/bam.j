@@ -295,6 +295,11 @@ func freeSectorIn(
     if ($at < 0) {
         return -1;
     }
+    # A full track has no bit set; the count byte is not trusted for this,
+    # because a damaged disk can disagree with its own map.
+    if (($bam[$at + 1] | $bam[$at + 2] | $bam[$at + 3]) == 0) {
+        return -1;
+    }
     def count as int init sectorsPerTrack($track);
     for (def i as int init 0; $i < $count; $i = $i + 1) {
         def s as int init ($start + $i * $interleave) % $count;
@@ -333,6 +338,36 @@ func claimIn(bam as bytes, format as DiskFormat, track as int, sector as int) {
 }
 
 /**
+ * Mark a block free in a BAM sector held outside the image.
+ *
+ * The batching half of {@link freeSector}, with the same checks: a caller
+ * releasing a whole chain frees each block here and writes the sector back
+ * once, instead of copying the whole image per block.
+ *
+ * @param bam {bytes} the BAM sector
+ * @param format {DiskFormat} the layout to read it under
+ * @param track {int} track number
+ * @param sector {int} sector number within the track
+ * @return {bytes} the sector with the block freed
+ * @throws {Error} when the block is already free or has no BAM entry
+ */
+func releaseIn(bam as bytes, format as DiskFormat, track as int, sector as int) {
+    def at as int init bamEntryOffset($format, $track);
+    if ($at < 0) {
+        fail("track " + convert.toString($track) + " has no BAM entry under " +
+            formatName($format));
+    }
+    def byteAt as int init $at + 1 + ($sector // 8);
+    if (bitSet($bam[$byteAt], $sector % 8)) {
+        fail("block " + convert.toString($track) + "/" + convert.toString($sector) +
+            " is already free");
+    }
+    $bam[$byteAt] = setBit($bam[$byteAt], $sector % 8);
+    $bam[$at] = $bam[$at] + 1;
+    return $bam;
+}
+
+/**
  * Set or clear one bit of the BAM and fix the track's count byte with it.
  *
  * @param img {Image} the disk to change
@@ -342,23 +377,21 @@ func claimIn(bam as bytes, format as DiskFormat, track as int, sector as int) {
  * @return {Image} the image with the BAM updated
  */
 func setBamBit(img as Image, track as int, sector as int, free as bool) {
-    # straight into one copy of the image: every allocated block comes through
-    # here, and a read-modify-write of the whole BAM sector for each would cost
-    # two copies of the image per block
+    # Edit the parameter and return it: value semantics still hand the caller
+    # an untouched image, and with `$img = allocateSector($img, ...)` the
+    # interpreter moves the image instead of copying it. Copying `data` into a
+    # local and the struct into `out` cost three 175 KB copies per bit.
     def base as int init sectorOffset(DIRECTORY_TRACK, BAM_SECTOR) +
         bamEntryOffset($img.format, $track);
     def byteAt as int init $base + 1 + ($sector // 8);
-    def raw as bytes init $img.data;
     if ($free) {
-        $raw[$byteAt] = setBit($raw[$byteAt], $sector % 8);
-        $raw[$base] = $raw[$base] + 1;
+        $img.data[$byteAt] = setBit($img.data[$byteAt], $sector % 8);
+        $img.data[$base] = $img.data[$base] + 1;
     } else {
-        $raw[$byteAt] = clearBit($raw[$byteAt], $sector % 8);
-        $raw[$base] = $raw[$base] -1;
+        $img.data[$byteAt] = clearBit($img.data[$byteAt], $sector % 8);
+        $img.data[$base] = $img.data[$base] -1;
     }
-    def out as Image init $img;
-    $out.data = $raw;
-    return $out;
+    return $img;
 }
 
 /**

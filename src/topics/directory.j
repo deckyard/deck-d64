@@ -278,14 +278,14 @@ export func findFile(img as Image, name as string) {
  * @return {int} the slot index, or -1
  */
 func findSlot(img as Image, name as string) {
-    def wanted as string init strings.lower($name);
+    def wanted as list of string init strings.chars(strings.lower($name));
     def slot as int init 0;
     for (def link in directorySectors($img)) {
         def block as bytes init readSector($img, $link.track, $link.sector);
         for (def i as int init 0; $i < ENTRIES_PER_SECTOR; $i = $i + 1) {
             def at as int init $i * ENTRY_SIZE;
             if ($block[$at + 2] != 0 and
-                strings.lower(decodeName($block[$at + 5..$at + 5 + MAX_FILENAME])) == $wanted) {
+                nameMatches($block[$at + 5..$at + 5 + MAX_FILENAME], $wanted)) {
                 return $slot;
             }
             $slot = $slot + 1;

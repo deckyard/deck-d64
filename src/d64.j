@@ -48,6 +48,7 @@
 use strings;
 use convert;
 use binary;
+use lists;
 use io;
 use fs;
 

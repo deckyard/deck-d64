@@ -1,6 +1,6 @@
 [package]
 name = "@deckyard/d64"
-version = "0.1.0"
+version = "0.2.0"
 description = "Read, write, create and format Commodore 1541 D64 disk images: CBM DOS 2A directories, BAM allocation, PETSCII names, and the 40-track SpeedDOS / DolphinDOS / PrologicDOS extensions"
 license = "LGPL-3.0-only"
 authors = ["mplx <mplx@jennifer-lang.dev>"]

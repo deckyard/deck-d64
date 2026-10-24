@@ -175,9 +175,8 @@ export func writeSector(img as Image, track as int, sector as int, block as byte
     # against 256 interpreter iterations, and measures about three times
     # faster even for a single block.
     def parts as list of bytes init [$img.data[0..$at], $block, $img.data[$at + SECTOR_SIZE..]];
-    def out as Image init $img;
-    $out.data = binary.join($parts);
-    return $out;
+    $img.data = binary.join($parts);
+    return $img;
 }
 
 /**
