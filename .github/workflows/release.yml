@@ -1,16 +1,17 @@
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 #
 # Cut a GitHub release when a stable version tag is pushed.
 #
 # A deck has nothing to compile and no per-platform artifact: it is Jennifer
-# source, vendored as src/. The release is the tag plus the archive jvc
-# fetches, gated by the same suite test.yml runs.
+# source, consumed by vendoring src/ into a project. So the release is the tag
+# plus the archive jvc would fetch, and the gate in front of it is test.yml
+# itself, called rather than copied - a red suite must not become a tag.
 #
-# Release tags are stable semver only: `0.2.0` or `v0.2.0`. A prerelease tag
-# (`0.2.0-rc1`) is not a release - tools/version.sh does not anchor a version
-# on one, and the gate below rejects it. The tag is the source of truth for
-# the version; deck.toml and src/topics/version.j are generated from it.
+# Release tags are stable semver only, without a prefix: `0.2.0`, never
+# `v0.2.0`. Neither a `v` tag nor a prerelease tag (`0.2.0-rc1`) is a release:
+# the trigger does not match them, and the gate below refuses one that slips
+# through or a manual run from a branch.
 
 name: release
 
@@ -18,130 +19,65 @@ on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
-      - "v[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify the tag
+  tag:
+    name: Check the tag
     runs-on: ubuntu-latest
     steps:
       - name: Check out
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v7
 
       # The trigger glob is loose; this is the gate. workflow_dispatch from a
       # branch lands here too and fails, which is the intent.
       - name: Tag must be a stable release
         run: |
           set -euo pipefail
-          if [[ ! "${GITHUB_REF_NAME}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::${GITHUB_REF_NAME} is not a stable release tag (N.N.N or vN.N.N)"
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::${GITHUB_REF_NAME} is not a stable release tag (N.N.N, no v prefix)"
             exit 1
           fi
 
-      - name: Resolve the interpreter image
-        run: |
-          set -euo pipefail
-          source tools/deck-lib.sh && deck_load
-          image="$(deck_image)"
-          echo "JENNIFER_IMAGE=${image}" >> "$GITHUB_ENV"
-          echo "floor ${DECK_FLOOR} -> ${image}"
-
-      - name: Pull the interpreter image
-        run: docker pull "$JENNIFER_IMAGE"
-
-      - name: Install a `jennifer` shim that runs the image
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.local/bin"
-          cat > "$HOME/.local/bin/jennifer" <<'SHIM'
-          #!/usr/bin/env bash
-          exec docker run --rm --user "$(id -u):$(id -g)" \
-            --volume "${GITHUB_WORKSPACE}:/work" --workdir /work \
-            --entrypoint jennifer "${JENNIFER_IMAGE}" "$@"
-          SHIM
-          chmod +x "$HOME/.local/bin/jennifer"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      # deck.toml's version is what jvc resolves against, read from the
+      # The manifest version is what jvc resolves against, read from the
       # default branch, so a tag that disagrees with it would publish the deck
       # under a number nothing else knows about.
       - name: Tag must match the manifest
         run: |
           set -euo pipefail
           source tools/deck-lib.sh && deck_load
-          if [[ "${GITHUB_REF_NAME#v}" != "$DECK_VERSION" ]]; then
+          if [[ "${GITHUB_REF_NAME}" != "$DECK_VERSION" ]]; then
             echo "::error::tag ${GITHUB_REF_NAME} does not match ${DECK_MANIFEST} version ${DECK_VERSION}"
             echo "::error::bump the manifest and commit it before tagging"
             exit 1
           fi
-          echo "${DECK_NAME} ${DECK_VERSION}"
+          echo "${DECK_MANIFEST} declares ${DECK_VERSION}, matching the tag"
 
-      # The generated half: d64.VERSION records the build.
-      - name: Stamp src/topics/version.j
-        run: tools/inject-version.sh
+      - name: The deck must have been initialised
+        run: tools/check-identity.sh --release
 
-      - name: Check formatting
-        run: |
-          set -euo pipefail
-          source tools/deck-lib.sh && deck_load
-          mapfile -t sources < <(deck_all_sources)
-          jennifer fmt -l "${sources[@]}"
-
-      - name: Lint
-        run: |
-          set -euo pipefail
-          source tools/deck-lib.sh && deck_load
-          mapfile -t units < <(deck_lint_units)
-          jennifer lint "${units[@]}"
-
-      - name: Guards
-        run: |
-          tools/check-headers.sh
-          tools/check-overlays.sh
-          tools/check-docs.sh
-
-      - name: Run the test suites
-        run: |
-          set -euo pipefail
-          source tools/deck-lib.sh && deck_load
-          failed=0
-          while read -r suite; do
-            echo "::group::$suite"
-            jennifer test "$suite" || failed=1
-            echo "::endgroup::"
-          done < <(deck_test_suites)
-          exit "$failed"
-
-      - name: Run every example
-        run: tools/check-examples.sh
-
-      - name: Repo-specific checks
-        run: |
-          if [[ -x tools/check-extra.sh ]]; then
-            tools/check-extra.sh
-          else
-            echo "no tools/check-extra.sh in this deck"
-          fi
+  test:
+    name: The gate
+    needs: tag
+    uses: ./.github/workflows/test.yml
 
   release:
     name: Create the release
-    needs: verify
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Tags for the version, and history for the notes.
           fetch-depth: 0
 
+      # A deck with a generated version file ships it stamped with the tag.
       - name: Build the release archive
         id: pack
         run: |

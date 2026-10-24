@@ -1,9 +1,9 @@
 [package]
-name = "@mplx/d64"
+name = "@deckyard/d64"
 version = "0.1.0"
 description = "Read, write, create and format Commodore 1541 D64 disk images: CBM DOS 2A directories, BAM allocation, PETSCII names, and the 40-track SpeedDOS / DolphinDOS / PrologicDOS extensions"
 license = "LGPL-3.0-only"
-authors = ["mplx <developer@mplx.eu>"]
+authors = ["mplx <mplx@jennifer-lang.dev>"]
 capabilities = []
 keywords = [
     "d64",
@@ -17,9 +17,9 @@ keywords = [
 ]
 
 [package.urls]
-deck = "https://raw.githubusercontent.com/mplx/deck-d64/main/deck.toml"
-homepage = "https://github.com/mplx/deck-d64"
-manual = "https://mplx.github.io/deck-d64/"
+deck = "https://raw.githubusercontent.com/deckyard/deck-d64/main/deck.toml"
+homepage = "https://github.com/deckyard/deck-d64"
+manual = "https://deckyard.github.io/deck-d64/"
 
 [engines]
 jennifer = ">=0.25.0"
