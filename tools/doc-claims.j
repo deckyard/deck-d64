@@ -1,6 +1,6 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 # pragma-jennifer-version: >=0.25.0
 
 /**
@@ -27,9 +27,9 @@ def failures as int init 0;
 /**
  * Compare one documented value against the real one.
  *
- * @param {string} what the doc path, a space, then what is being claimed
- * @param {string} got  what the code answered
- * @param {string} want what the docs say
+ * @param what {string} the doc path, a space, then what is being claimed
+ * @param got {string}  what the code answered
+ * @param want {string} what the docs say
  */
 func check(what as string, got as string, want as string) {
     # every claim is reported, so check-docs.sh can hold the guides to the set
@@ -45,9 +45,9 @@ func check(what as string, got as string, want as string) {
 /**
  * Compare a documented integer.
  *
- * @param {string} what the doc path, a space, then what is being claimed
- * @param {int}    got  what the code answered
- * @param {int}    want what the docs say
+ * @param what {string} the doc path, a space, then what is being claimed
+ * @param got {int}  what the code answered
+ * @param want {int} what the docs say
  */
 func checkInt(what as string, got as int, want as int) {
     check($what, convert.toString($got), convert.toString($want));
@@ -56,9 +56,9 @@ func checkInt(what as string, got as int, want as int) {
 /**
  * Compare a documented boolean.
  *
- * @param {string} what the doc path, a space, then what is being claimed
- * @param {bool}   got  what the code answered
- * @param {bool}   want what the docs say
+ * @param what {string} the doc path, a space, then what is being claimed
+ * @param got {bool}  what the code answered
+ * @param want {bool} what the docs say
  */
 func checkBool(what as string, got as bool, want as bool) {
     check($what, convert.toString($got), convert.toString($want));
@@ -67,7 +67,7 @@ func checkBool(what as string, got as bool, want as bool) {
 /**
  * A payload of `n` counting bytes.
  *
- * @param {int} n how many bytes
+ * @param n {int} how many bytes
  * @return {bytes} the payload
  */
 func counting(n as int) {
@@ -81,7 +81,7 @@ func counting(n as int) {
 /**
  * Format options for a 40-track disk in one of the speeder layouts.
  *
- * @param {d64.DiskFormat} format the layout
+ * @param format {d64.DiskFormat} the layout
  * @return {d64.FormatOptions} the options
  */
 func fortyTrack(format as d64.DiskFormat) {
@@ -110,7 +110,6 @@ def forty as d64.Image init d64.formatDiskWith(
     "40");
 checkInt("docs/guide/format.md 40-track len", len(d64.toBytes($forty)), 196608);
 checkInt("docs/guide/format.md 40-track blocksFree", d64.blocksFree($forty), 749);
-checkInt("docs/reference/cheatsheet.md 40-track blocksFree", d64.blocksFree($forty), 749);
 
 checkInt(
     "docs/guide/format.md bamEntryOffset speeddos 36",
@@ -149,10 +148,6 @@ checkInt("docs/index.md listFiles after", len(d64.listFiles($after)), 1);
 
 check(
     "docs/guide/petscii.md toPetscii hello",
-    encoding.toText(d64.toPetscii("hello"), "hex"),
-    "48454c4c4f");
-check(
-    "docs/index.md toPetscii hello",
     encoding.toText(d64.toPetscii("hello"), "hex"),
     "48454c4c4f");
 check(

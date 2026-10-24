@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LGPL-3.0-only
-# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <developer@mplx.eu>
+# SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
 #
 # Print the deck version, derived from git tags.
 #
-#   HEAD is a stable tag       0.2.0        (tag "0.2.0" or "v0.2.0")
+#   HEAD is a stable tag       0.2.0        (tag "0.2.0")
 #   anywhere else              0.2.0-dev+14.9ebf3dd
 #                              ^ last stable tag, commits since it, short sha
 #   no stable tag yet          <manifest version>-dev+<commits>.<sha>
@@ -22,9 +22,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Stable tags only: N.N.N, with or without a leading v. A tag carrying a
-# prerelease or build suffix is not a release and does not anchor one.
-STABLE='^v?[0-9]+\.[0-9]+\.[0-9]+$'
+# Stable tags only: N.N.N, no leading v. A tag carrying a prefix, a
+# prerelease or a build suffix is not a release and does not anchor one.
+STABLE='^[0-9]+\.[0-9]+\.[0-9]+$'
 
 # The nearest stable tag that is an ancestor of HEAD, and how far back it is.
 # `git describe` is no use here: it would hand back the nearest tag of any
@@ -56,7 +56,7 @@ if ! git rev-parse --git-dir >/dev/null 2>&1 || ! git rev-parse HEAD >/dev/null 
 fi
 
 # An exact stable tag on HEAD is a release, whatever else points at it.
-exact="$(git tag --points-at HEAD 2>/dev/null | grep -E "$STABLE" | sed 's/^v//' \
+exact="$(git tag --points-at HEAD 2>/dev/null | grep -E "$STABLE" \
     | sort -V | tail -1 || true)"
 if [[ -n "$exact" ]]; then
     printf '%s\n' "$exact"
@@ -71,7 +71,7 @@ commits=0
 read -r base commits < <(nearest_stable) || true
 
 if [[ -n "${base:-}" ]]; then
-    printf '%s-dev+%s.%s\n' "${base#v}" "$commits" "$sha"
+    printf '%s-dev+%s.%s\n' "$base" "$commits" "$sha"
 else
     # Nothing tagged yet: anchor on what the manifest says is being worked
     # toward, so a pre-release build reads 0.1.0-dev+3.abc1234 rather than
