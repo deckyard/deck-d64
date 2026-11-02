@@ -239,7 +239,7 @@ func testFreeSlotIndexWalksTheWholeChain() {
         $img = writeText($img, "file" + convert.toString($i), FileType.Seq, "x");
     }
     testing.assertEqual(freeSlotIndex($img), -1);
-    $img = ensureFreeSlot($img);
+    $img = ensureFreeSlot($img, freeSlotIndex($img));
     testing.assertEqual(freeSlotIndex($img), 8);
 }
 

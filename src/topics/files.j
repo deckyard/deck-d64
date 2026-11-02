@@ -176,7 +176,11 @@ export func readProgram(img as Image, name as string) {
 export func writeFile(img as Image, name as string, kind as FileType, data as bytes) {
     checkWritable($img, $name, $kind);
     def blocks as int init blocksForBytes(len($data));
-    def out as Image init ensureFreeSlot($img);
+    def slot as int init freeSlotIndex($img);
+    def out as Image init ensureFreeSlot($img, $slot);
+    if ($slot < 0) {
+        $slot = freeSlotIndex($out);
+    }
     if (blocksFree($out) < $blocks) {
         fail("the disk holds " + convert.toString(blocksFree($out)) + " free blocks; \"" + $name +
             "\" needs " + convert.toString($blocks));
@@ -196,7 +200,6 @@ export func writeFile(img as Image, name as string, kind as FileType, data as by
     }
     # Neither the BAM nor the data blocks are directory blocks, so the slot
     # found before writing them is still the free one afterwards.
-    def slot as int init freeSlotIndex($out);
     $out = writeSector($out, DIRECTORY_TRACK, BAM_SECTOR, $bam);
     $out = storeChain($out, $chain, $data);
     return addEntry($out, $slot, $name, $kind, $chain[0], $blocks);

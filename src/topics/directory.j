@@ -577,14 +577,16 @@ func extendDirectory(img as Image) {
 }
 
 /**
- * The image with at least one free directory slot in it.
+ * The image with at least one free directory slot in it. The caller passes
+ * the slot it already found, so the chain is not scanned twice.
  *
  * @param img {Image} the disk to change
+ * @param slot {int} `freeSlotIndex($img)`
  * @return {Image} the image, its directory extended if it had to be
  * @throws {Error} when the directory cannot grow
  */
-func ensureFreeSlot(img as Image) {
-    if (freeSlotIndex($img) >= 0) {
+func ensureFreeSlot(img as Image, slot as int) {
+    if ($slot >= 0) {
         return $img;
     }
     return extendDirectory($img);

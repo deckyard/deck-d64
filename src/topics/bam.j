@@ -131,7 +131,14 @@ export func allocateSector(img as Image, track as int, sector as int) {
         fail("block " + convert.toString($track) + "/" + convert.toString($sector) +
             " is already allocated");
     }
-    return setBamBit($img, $track, $sector, false);
+    # The bit is flipped here, not in a shared helper: handing `$img` on to
+    # another function that edits it copies the whole 175 KB image per call.
+    def base as int init sectorOffset(DIRECTORY_TRACK, BAM_SECTOR) +
+        bamEntryOffset($img.format, $track);
+    def byteAt as int init $base + 1 + ($sector // 8);
+    $img.data[$byteAt] = clearBit($img.data[$byteAt], $sector % 8);
+    $img.data[$base] = $img.data[$base] -1;
+    return $img;
 }
 
 /**
@@ -157,7 +164,13 @@ export func freeSector(img as Image, track as int, sector as int) {
         fail("block " + convert.toString($track) + "/" + convert.toString($sector) +
             " is already free");
     }
-    return setBamBit($img, $track, $sector, true);
+    def base as int init sectorOffset(DIRECTORY_TRACK, BAM_SECTOR) +
+        bamEntryOffset($img.format, $track);
+    def byteAt as int init $base + 1 + ($sector // 8);
+    # Flipped in place, as in `allocateSector`.
+    $img.data[$byteAt] = setBit($img.data[$byteAt], $sector % 8);
+    $img.data[$base] = $img.data[$base] + 1;
+    return $img;
 }
 
 /**
@@ -365,33 +378,6 @@ func releaseIn(bam as bytes, format as DiskFormat, track as int, sector as int) 
     $bam[$byteAt] = setBit($bam[$byteAt], $sector % 8);
     $bam[$at] = $bam[$at] + 1;
     return $bam;
-}
-
-/**
- * Set or clear one bit of the BAM and fix the track's count byte with it.
- *
- * @param img {Image} the disk to change
- * @param track {int}  track number
- * @param sector {int} sector number within the track
- * @param free {bool}   true to mark free, false to mark taken
- * @return {Image} the image with the BAM updated
- */
-func setBamBit(img as Image, track as int, sector as int, free as bool) {
-    # Edit the parameter and return it: value semantics still hand the caller
-    # an untouched image, and with `$img = allocateSector($img, ...)` the
-    # interpreter moves the image instead of copying it. Copying `data` into a
-    # local and the struct into `out` cost three 175 KB copies per bit.
-    def base as int init sectorOffset(DIRECTORY_TRACK, BAM_SECTOR) +
-        bamEntryOffset($img.format, $track);
-    def byteAt as int init $base + 1 + ($sector // 8);
-    if ($free) {
-        $img.data[$byteAt] = setBit($img.data[$byteAt], $sector % 8);
-        $img.data[$base] = $img.data[$base] + 1;
-    } else {
-        $img.data[$byteAt] = clearBit($img.data[$byteAt], $sector % 8);
-        $img.data[$base] = $img.data[$base] -1;
-    }
-    return $img;
 }
 
 /**
