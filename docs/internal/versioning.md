@@ -67,7 +67,7 @@ d64.VERSION;   # "0.2.0"
 | Workflow | Trigger | Does |
 |---|---|---|
 | `test.yml` | every commit, every branch, every PR | inject version, fmt, lint, guards, suites, examples, `jennifer-tiny` |
-| `docs.yml` | every commit and PR | build the book; publish to Pages from `main` |
+| `docs.yml` | release tag, push to `main`, PR | Grimoire's shared Pages workflow: publish the book of the highest release tag (`main` before the first); a PR only builds |
 | `release.yml` | stable version tag | the same gate, then pack and release |
 
 `test.yml` injects before `fmt`, so the generated file is linted and
