@@ -127,6 +127,12 @@ export func blocksFree(img as Image) {
  *   $img = allocateSector($img, 17, 0);
  */
 export func allocateSector(img as Image, track as int, sector as int) {
+    # checked first: isFree reports such a track as taken, which would
+    # misreport it as "already allocated"
+    if (bamEntryOffset($img.format, $track) < 0) {
+        fail("track " + convert.toString($track) + " has no BAM entry under " +
+            formatName($img.format));
+    }
     if (not isFree($img, $track, $sector)) {
         fail("block " + convert.toString($track) + "/" + convert.toString($sector) +
             " is already allocated");

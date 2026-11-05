@@ -131,6 +131,17 @@ func freeWhereThereIsNoBamEntry() {
     freeSector(fortyTrackDisk(DiskFormat.SpeedDos), 41, 0);
 }
 
+func testAllocateWhereThereIsNoBamEntrySaysSo() {
+    # a track without a BAM entry is not "already allocated": say what is wrong
+    def message as string init "";
+    try {
+        allocateWhereThereIsNoBamEntry();
+    } catch (e) {
+        $message = $e.message;
+    }
+    testing.assertTrue(strings.contains($message, "has no BAM entry"));
+}
+
 func testTrackSearchOrderSpiralsOutFromTheDirectory() {
     def order as list of int init trackSearchOrder(formatDisk("d", "01"), 0);
     testing.assertEqual($order[0], 17);
