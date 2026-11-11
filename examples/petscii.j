@@ -1,7 +1,7 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 /**
  * petscii example - the character set CBM DOS stores names and text in.
@@ -33,12 +33,12 @@ for (def s in $samples) {
     io.printf(
         "%s|pad=16|align=left %s|pad=28|align=left %s\n",
         "\"" + $s + "\"",
-        encoding.toText($raw, "hex"),
+        encoding.toText("hex", $raw),
         "\"" + d64.fromPetscii($raw) + "\"");
 }
 
 # a filename is PETSCII padded to sixteen bytes with the shifted space $a0
-io.printf("\nencodeName(\"hello\") = %s\n", encoding.toText(d64.encodeName("hello"), "hex"));
+io.printf("\nencodeName(\"hello\") = %s\n", encoding.toText("hex", d64.encodeName("hello")));
 io.printf("decodeName(...)      = \"%s\"\n", d64.decodeName(d64.encodeName("hello")));
 
 # the drive's own wildcards, the ones LOAD"HE*",8 uses
@@ -50,4 +50,4 @@ for (def p in $patterns) {
 
 # on the disk a newline is a carriage return, which is what a C64 reads
 def text as bytes init d64.toPetscii("one\ntwo\n");
-io.printf("\n\"one\\ntwo\\n\" on disk: %s\n", encoding.toText($text, "hex"));
+io.printf("\n\"one\\ntwo\\n\" on disk: %s\n", encoding.toText("hex", $text));

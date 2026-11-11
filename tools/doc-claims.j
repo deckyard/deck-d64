@@ -1,7 +1,7 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 /**
  * Every result the documentation claims, asserted against the code.
@@ -148,19 +148,19 @@ checkInt("docs/index.md listFiles after", len(d64.listFiles($after)), 1);
 
 check(
     "docs/guide/petscii.md toPetscii hello",
-    encoding.toText(d64.toPetscii("hello"), "hex"),
+    encoding.toText("hex", d64.toPetscii("hello")),
     "48454c4c4f");
 check(
     "docs/guide/petscii.md toPetscii Hello",
-    encoding.toText(d64.toPetscii("Hello"), "hex"),
+    encoding.toText("hex", d64.toPetscii("Hello")),
     "c8454c4c4f");
 check(
     "docs/guide/petscii.md toPetscii braces",
-    encoding.toText(d64.toPetscii('a{b}'), "hex"),
+    encoding.toText("hex", d64.toPetscii('a{b}')),
     "413f423f");
 check(
     "docs/guide/petscii.md encodeName",
-    encoding.toText(d64.encodeName("hello"), "hex"),
+    encoding.toText("hex", d64.encodeName("hello")),
     "48454c4c4fa0a0a0a0a0a0a0a0a0a0a0");
 check("docs/guide/petscii.md decodeName", d64.decodeName(d64.encodeName("hello")), "hello");
 # the two-charset examples: the same bytes, two readings

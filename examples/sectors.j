@@ -1,7 +1,7 @@
 #!/usr/bin/env -S jennifer run
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 /**
  * sectors example - the layer under the filesystem.
@@ -38,17 +38,17 @@ for (def t in $probes) {
 def bam as bytes init d64.readSector($img, 18, 0);
 io.printf(
     "\nbam 18/0 first bytes : %s  (link to 18/1, DOS version $%d|base=16)\n",
-    encoding.toText($bam[0..4], "hex"),
+    encoding.toText("hex", $bam[0..4]),
     $bam[2]);
-io.printf("bam 18/0 header      : %s\n", encoding.toText($bam[0x90..0xab], "hex"));
+io.printf("bam 18/0 header      : %s\n", encoding.toText("hex", $bam[0x90..0xab]));
 io.printf(
     "bam entry for track 1: %s  (%d free, bits 0-20 set)\n",
-    encoding.toText($bam[0x04..0x08], "hex"),
+    encoding.toText("hex", $bam[0x04..0x08]),
     $bam[0x04]);
 
 # the first directory slot, 32 bytes of it
 def dir as bytes init d64.readSector($img, 18, 1);
-io.printf("\ndirectory slot 0     : %s\n", encoding.toText($dir[0..32], "hex"));
+io.printf("\ndirectory slot 0     : %s\n", encoding.toText("hex", $dir[0..32]));
 io.printf(
     "  type byte $%d|base=16  first block %d/%d  %d block(s)\n",
     $dir[2],
@@ -58,7 +58,7 @@ io.printf(
 
 # the file's one data block: link 00/02 means "last block, one byte used"
 def block as bytes init d64.readSector($img, 17, 0);
-io.printf("\nfile block 17/0      : %s ...\n", encoding.toText($block[0..8], "hex"));
+io.printf("\nfile block 17/0      : %s ...\n", encoding.toText("hex", $block[0..8]));
 
 # a block range: the BAM and the first directory block, read as one run
 def run as bytes init d64.readBlocks($img, d64.Link{track: 18, sector: 0}, 2);
