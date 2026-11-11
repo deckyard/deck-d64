@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 # d64 - files: reading, writing and scratching the block chains.
 # Spliced into d64.j via include - not a standalone module.
@@ -77,7 +77,7 @@ export func readChain(img as Image, track as int, sector as int) {
                 fail("the last block of the chain claims " + convert.toString($block[1]) +
                     " bytes used, which is not a length");
             }
-            $take = $block[1] -1;
+            $take = $block[1] - 1;
         }
         $parts[] = $block[2..2 + $take];
     }
@@ -522,7 +522,7 @@ func entryInfo(img as Image, entry as Entry) {
         def tail as Link init $chain[len($chain) - 1];
         def last as bytes init readSector($img, $tail.track, $tail.sector);
         if ($last[0] == 0 and $last[1] >= 1) {
-            $used = $last[1] -1;
+            $used = $last[1] - 1;
         }
         $size = (len($chain) - 1) * DATA_BYTES_PER_SECTOR + $used;
     }

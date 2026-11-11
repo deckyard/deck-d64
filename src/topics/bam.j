@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev>
-# pragma-jennifer-version: >=0.25.0
+# pragma-jennifer-version: >=0.26.0
 
 # d64 - the Block Availability Map: what is free, what is taken, and the
 # disk header that shares sector 18/0 with it.
@@ -143,7 +143,7 @@ export func allocateSector(img as Image, track as int, sector as int) {
         bamEntryOffset($img.format, $track);
     def byteAt as int init $base + 1 + ($sector // 8);
     $img.data[$byteAt] = clearBit($img.data[$byteAt], $sector % 8);
-    $img.data[$base] = $img.data[$base] -1;
+    $img.data[$base] = $img.data[$base] - 1;
     return $img;
 }
 
@@ -352,7 +352,7 @@ func claimIn(bam as bytes, format as DiskFormat, track as int, sector as int) {
     def byteAt as int init $at + 1 + ($sector // 8);
     def out as bytes init $bam;
     $out[$byteAt] = clearBit($out[$byteAt], $sector % 8);
-    $out[$at] = $out[$at] -1;
+    $out[$at] = $out[$at] - 1;
     return $out;
 }
 
