@@ -52,7 +52,6 @@ use lists;
 use io;
 use fs;
 
-include "topics/version.j";
 include "topics/core.j";
 include "topics/geometry.j";
 include "topics/petscii.j";

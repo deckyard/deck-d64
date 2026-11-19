@@ -13,7 +13,6 @@ isolation its calls into its siblings are undefined.
 ```
 src/d64.j              the entry module - the one consumers import
 src/d64_test.j         its white-box test overlay
-src/topics/version.j   generated: VERSION, stamped from the git tag
 src/topics/core.j      shared primitives: errors, buffers, bit twiddling
 src/topics/geometry.j  tracks, sectors, offsets, image sizes
 src/topics/petscii.j   the character set, filenames, wildcards
@@ -41,13 +40,7 @@ tools/                 the CI helpers
 site/                  the built book, gitignored
 ```
 
-## Generated files
-
-`tools/inject-version.sh` overwrites it; do not edit it by hand.
-
-| File | Holds | Stamped by |
-|---|---|---|
-| `src/topics/version.j` | `VERSION` | every build, from the git tags |
+## The version
 
 `deck.toml`'s `package.version` is authored and committed, because jvc
 resolves against it. See [Versioning](versioning.md).

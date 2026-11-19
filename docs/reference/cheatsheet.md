@@ -279,4 +279,3 @@ Which of the C64's two character sets a PETSCII byte is read in. Zero value `Shi
 | `HEADER_OFFSET_PROLOGIC` | `$a4` | where PrologicDOS moved it |
 | `ERROR_OK` | `$01` | the error code of a good block |
 | `ERROR_KIND` | `"d64"` | the `kind` every `Error` here carries |
-| `VERSION` | generated | the deck version, injected from the git tag |

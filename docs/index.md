@@ -77,7 +77,7 @@ whose length is not a D64 size.
 | [Blocks and the BAM](guide/sectors.md) | raw blocks, allocation, interleave |
 | [Drives and computers](reference/hardware.md) | 1540-1581, the machines, GCR and MFM |
 | [The D64 format on disk](reference/format.md) | every byte offset |
-| [Versioning](internal/versioning.md) | git tags, `VERSION`, CI injection |
+| [Versioning](internal/versioning.md) | the manifest version, git tags, releases |
 | [Cheatsheet](reference/cheatsheet.md) | full API surface |
 
 Runnable programs:
