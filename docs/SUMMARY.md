@@ -18,6 +18,7 @@
 - [Drives and computers](reference/hardware.md)
 - [The D64 format on disk](reference/format.md)
 - [Cheatsheet](reference/cheatsheet.md)
+- [Design](design.md)
 
 # Internal
 
