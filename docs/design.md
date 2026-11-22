@@ -110,5 +110,6 @@ loop or write out of bounds.
 
 ## Dependencies on the interpreter
 
-Floor `>=0.26.0` for `jennifer` and `jennifer-tiny`, no capability. It needs
-nothing beyond `bytes`, `fs` and the standard libraries.
+Floor `>=0.27.0` for `jennifer` and `jennifer-tiny`, no capability, for the
+UTF-8 codec of `encoding.decode`. It needs nothing beyond `bytes`, `fs` and
+the standard libraries.
