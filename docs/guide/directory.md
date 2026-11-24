@@ -29,7 +29,7 @@ io.printf("%s", d64.directoryText($img));
 
 Header: disk name padded to 16, ID, DOS type. Per file: blocks, quoted name,
 `*` if never closed, type, `<` if locked. Footer: `blocksFree`. Names are in
-the lower-case spelling a C64 shows upper case; see [PETSCII](petscii.md).
+the lower-case spelling a C64™ shows upper case; see [PETSCII](petscii.md).
 
 ## Entries
 

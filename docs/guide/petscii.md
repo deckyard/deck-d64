@@ -4,7 +4,7 @@
 # PETSCII
 
 PETSCII and ASCII agree on digits, space and most punctuation, not on
-letters. The C64 has two character sets that draw some bytes differently:
+letters. The C64™ has two character sets that draw some bytes differently:
 
 | Byte | `Charset.Shifted` (lower/upper case) | `Charset.Unshifted` (upper case/graphics, the power-on set) |
 |---|---|---|
@@ -36,7 +36,7 @@ power-on set draws as graphics.
 - `$20`-`$40`: space, digits, `! " # $ % & ' ( ) * + , - . / : ; < = > ? @`;
 - `[` and `]`;
 - control codes `$00`-`$1f`, passed through unchanged;
-- `\n` ↔ `$0d`, the CBM line terminator, so PETSCII text splits on `\n`;
+- `\n` ↔ `$0d`, the CBM™ line terminator, so PETSCII text splits on `\n`;
 - `£` `$5c`, `↑` `$5e`, `←` `$5f`, `π` `$ff`;
 - `U+00A0` ↔ `$a0`, the shifted space used to pad filenames.
 

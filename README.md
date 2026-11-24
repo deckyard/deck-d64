@@ -4,9 +4,9 @@
 [![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://deckyard.github.io/deck-d64/)
 [![release](https://img.shields.io/github/v/release/deckyard/deck-d64)](https://github.com/deckyard/deck-d64/releases/latest)
 
-Reads, writes, creates and formats Commodore 1541 D64 disk images: the CBM DOS
+Reads, writes, creates and formats Commodore™ 1541 D64 disk images: the CBM™ DOS
 2.6 BAM and directory, SEQ, PRG and USR files, PETSCII names, raw block
-access, and the 40-track SpeedDOS, DolphinDOS and PrologicDOS BAM layouts.
+access, and the 40-track SpeedDOS™, DolphinDOS™ and PrologicDOS™ BAM layouts.
 Pure Jennifer with no capabilities, so it runs on `jennifer-tiny`; only `open`
 and `save` touch the filesystem.
 
@@ -50,6 +50,14 @@ io.printf("%s", d64.directoryText($img));
 
 d64.save($img, "sample.d64");
 ```
+
+## Trademarks
+
+Commodore™, C64™, VIC-20™, CBM™, SpeedDOS™, DolphinDOS™, PrologicDOS™ and
+the other product and company names in these docs may be trademarks of their
+respective owners. They are used only to identify the hardware and disk
+formats this deck works with. This deck is an independent project, not
+affiliated with, sponsored or endorsed by any of them.
 
 ## Licence
 

@@ -5,10 +5,10 @@
 
 ## Scope
 
-The deck reads, writes, creates and formats Commodore 1541 D64 disk images:
-the CBM DOS 2.6 BAM and directory, SEQ / PRG / USR file chains, PETSCII names,
+The deck reads, writes, creates and formats Commodore™ 1541 D64 disk images:
+the CBM™ DOS 2.6 BAM and directory, SEQ / PRG / USR file chains, PETSCII names,
 raw block access, the optional error table, and the 40-track BAM layouts of
-SpeedDOS, DolphinDOS and PrologicDOS. Tracks 41 and 42 are reachable block by
+SpeedDOS™, DolphinDOS™ and PrologicDOS™. Tracks 41 and 42 are reachable block by
 block.
 
 It is pure computation over a byte buffer. Only `open` and `save` touch the
@@ -56,7 +56,7 @@ Out of scope:
   `matchName` follows the drive: `*` ends the pattern, so `he*lo` matches
   every name starting `he`.
 - **PETSCII defaults to the shifted charset**, the convention of `petcat`
-  and `c1541`: `toPetscii("hello")` shows as `HELLO` on a C64. Some graphics
+  and `c1541`: `toPetscii("hello")` shows as `HELLO` on a C64™. Some graphics
   characters map above U+FFFF (Symbols for Legacy Computing). `DOS_TYPE` is
   `"2a"` in lower case for the same reason; on screen it shows as `2A`.
 - **Performance is a design constraint.** Passing an `Image` to a function

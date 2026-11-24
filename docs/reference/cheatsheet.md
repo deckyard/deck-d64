@@ -23,7 +23,7 @@ A disk image in memory.
 
 ### `Link`
 
-A track/sector pair, the link CBM DOS chains blocks with.
+A track/sector pair, the link CBM™ DOS chains blocks with.
 
 | Field | Notes |
 |---|---|
@@ -116,7 +116,7 @@ How much of the disk a format rewrites. Zero value `Full`.
 
 ### `Charset`
 
-Which of the C64's two character sets a PETSCII byte is read in. Zero value `Shifted`.
+Which of the C64™'s two character sets a PETSCII byte is read in. Zero value `Shifted`.
 
 | Variant | Notes |
 |---|---|
@@ -137,7 +137,7 @@ Which of the C64's two character sets a PETSCII byte is read in. Zero value `Shi
 | `formatFromName(name)` | `DiskFormat` | inverse, case-insensitive; also `"1541"`, `"commodore"`, `"speed"`, `"dolphin"`, `"prologic"`, hyphenated |
 | `formatTracks(format)` | `int` | 35 for `Cbm`, 40 for the speeder layouts |
 | `detectFormat(bam, tracks)` | `DiskFormat` | guess the layout from sector 18/0; used by `fromBytes`. Always `Cbm` for 35 tracks |
-| `headerOffsetFor(format)` | `int` | `$90`, or `$a4` under PrologicDOS |
+| `headerOffsetFor(format)` | `int` | `$90`, or `$a4` under PrologicDOS™ |
 | `bamEntryOffset(format, track)` | `int` | offset of a track's four BAM bytes, `-1` when it has none |
 
 ## Image

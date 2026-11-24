@@ -23,7 +23,7 @@ $img = d64.writeProgram($img, "demo", 0x0801, $code);
 | Function | Stores |
 |---|---|
 | `writeFile` | raw bytes |
-| `writeText` | PETSCII; `\n` becomes the CBM carriage return `$0d` |
+| `writeText` | PETSCII; `\n` becomes the CBM™ carriage return `$0d` |
 | `writeProgram` | two-byte load address, low byte first, then the data; type PRG |
 
 Blocks come from the [allocator](sectors.md#the-allocator) at interleave 10.

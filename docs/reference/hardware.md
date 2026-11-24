@@ -7,16 +7,16 @@
 
 | Drive | Year | Media | Capacity | Tracks | Sides | Encoding | Image |
 |---|---:|---|---:|---:|---:|---|---|
-| VIC-1540 | 1981 | 5¼" DD | 170 kB | 35 | 1 | GCR | **D64** |
+| VIC-1540™ | 1981 | 5¼" DD | 170 kB | 35 | 1 | GCR | **D64** |
 | 1541 | 1982 | 5¼" DD | 170 kB | 35 | 1 | GCR | **D64** |
 | 1570 | 1985 | 5¼" DD | 170 kB | 35 | 1 | GCR + MFM | **D64** |
 | 1571 | 1985 | 5¼" DD | 340 kB | 35 ×2 | 2 | GCR + MFM | D71 |
 | 1581 | 1987 | 3½" DD | 800 kB | 80 | 2 | MFM only | D81 |
 
-Each drive has its own 6502, RAM and ROM, and runs CBM DOS in firmware. The
+Each drive has its own 6502, RAM and ROM, and runs CBM™ DOS in firmware. The
 host sends filenames and commands over the serial bus.
 
-**VIC-1540** - for the VIC-20. Its serial timing is too fast for the C64,
+**VIC-1540** - for the VIC-20™. Its serial timing is too fast for the C64™,
 whose VIC-II steals bus cycles for video; on a C64 it works only with the
 screen blanked. The 1541 ROM fixed this by slowing the transfer down.
 
@@ -30,10 +30,10 @@ software; fastloaders and speeder DOSes work around that.
 **1570** - a single-sided 1571, sold mainly in Europe as a stopgap while
 double-sided mechanisms were short. 1571 board, 1541 mechanism: burst mode,
 and a WD1770/1772 controller that reads single-sided MFM disks under C128
-CP/M. Its GCR side writes ordinary 35-track D64 layouts.
+CP/M™. Its GCR side writes ordinary 35-track D64 layouts.
 
 **1571** - the C128's drive. Double-sided, 70 tracks, 340 kB, burst mode, and
-MFM through the WD1770 for CP/M and (with third-party software) MS-DOS disks.
+MFM through the WD1770 for CP/M and (with third-party software) MS-DOS™ disks.
 In C64 mode it behaves as a 1541. Double-sided disks are D71, not D64.
 
 **1581** - 3½", 800 kB, 80 tracks of 40 logical 256-byte sectors, CBM DOS
@@ -85,7 +85,7 @@ The 1541 pairs GCR with **zone bit recording**. The disk spins at a constant
 tracks hold more sectors: four zones of 21, 19, 18 and 17 sectors. That is
 the D64 geometry, and why a 35-track disk has 683 blocks.
 
-**MFM** - Modified Frequency Modulation, the IBM PC and CP/M standard. A
+**MFM** - Modified Frequency Modulation, the IBM™ PC and CP/M standard. A
 clock bit is inserted between data bits only where the data does not supply
 an edge. Constant sectors per track, so no zones. The 1571 and 1581 get it
 from a Western Digital WD1770/1772 controller chip; the 1541 has no MFM
@@ -109,7 +109,7 @@ not the cause of the error.
 ## Sources
 
 - [C64-Wiki](https://www.c64-wiki.com/) - drive models and revisions.
-- Wikipedia: [1541](https://en.wikipedia.org/wiki/Commodore_1541),
+- Wikipedia™: [1541](https://en.wikipedia.org/wiki/Commodore_1541),
   [1570](https://en.wikipedia.org/wiki/Commodore_1570),
   [1571](https://en.wikipedia.org/wiki/Commodore_1571),
   [1581](https://en.wikipedia.org/wiki/Commodore_1581).

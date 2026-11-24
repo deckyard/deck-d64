@@ -62,7 +62,7 @@ Tracks 1-35 have entries at `$04`-`$8f`, then comes the disk header. Each
 | `DolphinDos` | `$ac`-`$bf` | `$90` |
 | `PrologicDos` | `$90`-`$a3` | `$a4` |
 
-PrologicDOS put them over the disk name and moved the header up 20 bytes.
+PrologicDOS™ put them over the disk name and moved the header up 20 bytes.
 Every BAM call goes through `headerOffsetFor` and `bamEntryOffset`.
 
 ```jennifer

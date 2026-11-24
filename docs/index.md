@@ -3,12 +3,12 @@
 
 # @deckyard/d64
 
-Read, write, create and format Commodore 1541 D64 disk images.
+Read, write, create and format Commodore™ 1541 D64 disk images.
 
 This deck is part of [Deckyard](https://github.com/deckyard), community decks for [Jennifer](https://jennifer-lang.dev/).
 
 A D64 is the blocks of a 5.25" disk stored back to back with no header: 683
-blocks of 256 bytes on a 35-track disk. Inside them is CBM DOS 2.6 - the BAM in
+blocks of 256 bytes on a 35-track disk. Inside them is CBM™ DOS 2.6 - the BAM in
 18/0, a chain of 32-byte directory slots from 18/1, one linked list of blocks
 per file. Four BAM layouts are supported: stock 35-track `Cbm` and the 40-track
 `SpeedDos`, `DolphinDos` and `PrologicDos`.
@@ -46,7 +46,7 @@ part-way throws, and the caller's image is unchanged.
 ## Case
 
 The transcoder swaps case, as `petcat` does: `toPetscii("hello")` gives the
-bytes a C64 shows as `HELLO`. Write names lower case. See
+bytes a C64™ shows as `HELLO`. Write names lower case. See
 [PETSCII](guide/petscii.md).
 
 ## Errors
@@ -82,3 +82,11 @@ whose length is not a D64 size.
 
 Runnable programs:
 [`examples/`](https://github.com/deckyard/deck-d64/tree/main/examples).
+
+## Trademarks
+
+Commodore™, C64™, VIC-20™, CBM™, SpeedDOS™, DolphinDOS™, PrologicDOS™ and
+the other product and company names in these docs may be trademarks of their
+respective owners. They are used only to identify the hardware and disk
+formats this deck works with. This deck is an independent project, not
+affiliated with, sponsored or endorsed by any of them.

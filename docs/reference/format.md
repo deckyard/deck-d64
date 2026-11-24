@@ -67,10 +67,10 @@ Each speeder DOS put the five entries for tracks 36-40 in a different place:
 
 | Format | Tracks 36-40 | Disk header |
 |---|---|---|
-| CBM | - | `$90` |
-| SpeedDOS | `$c0`-`$d3` | `$90` |
-| DolphinDOS | `$ac`-`$bf` | `$90` |
-| PrologicDOS | `$90`-`$a3` | `$a4` |
+| CBM™ | - | `$90` |
+| SpeedDOS™ | `$c0`-`$d3` | `$90` |
+| DolphinDOS™ | `$ac`-`$bf` | `$90` |
+| PrologicDOS™ | `$90`-`$a3` | `$a4` |
 
 PrologicDOS put the entries over the disk name and moved the whole header -
 name, filler, ID, filler, DOS type, filler - up 20 bytes, so its DOS type sits
@@ -96,7 +96,7 @@ On the last block of the chain the link is `$00 $ff`.
 | `$05`-`$14` | filename, 16 bytes, PETSCII padded with `$a0` |
 | `$15`-`$16` | track/sector of the first side-sector block, REL only |
 | `$17` | record length, REL only, at most 254 |
-| `$18`-`$1d` | unused (GEOS uses them) |
+| `$18`-`$1d` | unused (GEOS™ uses them) |
 | `$1e`-`$1f` | file length in blocks, low byte first |
 
 Slots start at `$00`, `$20`, `$40`, `$60`, `$80`, `$a0`, `$c0`, `$e0`.
@@ -140,7 +140,7 @@ In the last block a length byte of `n` means bytes `$02`-`$n` are file data:
 empty file). `$00` is not a length; the deck throws on it.
 
 A PRG's first two payload bytes are its load address, low byte first: `$01
-$08` is `$0801`, the start of BASIC on a C64.
+$08` is `$0801`, the start of BASIC on a C64™.
 
 ## Sources
 
