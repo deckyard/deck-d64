@@ -19,7 +19,7 @@ ASCII lower case maps to `$41`-`$5a`, which the power-on C64 shows upper
 case:
 
 ```jennifer
-import "@deckyard/d64/" as d64;
+import "@skiffyard/d64/" as d64;
 
 d64.toPetscii("hello");   # $48 $45 $4c $4c $4f - the C64 shows HELLO
 d64.toPetscii("Hello");   # $c8 $45 $4c $4c $4f

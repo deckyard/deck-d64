@@ -37,7 +37,7 @@
  * @module d64
  * @see https://www.c64-wiki.de/wiki/D64
  * @example
- *   import "@deckyard/d64/" as d64;
+ *   import "@skiffyard/d64/" as d64;
  *
  *   def img as d64.Image init d64.formatDisk("sample disk", "01");
  *   $img = d64.writeText($img, "readme", d64.FileType.Seq, "hello\n");

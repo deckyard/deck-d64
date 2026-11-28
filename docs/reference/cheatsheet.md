@@ -4,7 +4,7 @@
 # D64 cheatsheet
 
 Every export. Names are written bare; after
-`import "@deckyard/d64/" as d64;` they read `d64.formatDisk(...)`. Every
+`import "@skiffyard/d64/" as d64;` they read `d64.formatDisk(...)`. Every
 failure throws an `Error` with `kind` `"d64"`. Functions that return an `Image`
 leave their `img` argument unchanged.
 

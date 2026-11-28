@@ -23,7 +23,7 @@ Outer tracks hold more sectors (see [zone bit recording](../reference/hardware.m
 The image stores blocks in track order, then sector order.
 
 ```jennifer
-import "@deckyard/d64/" as d64;
+import "@skiffyard/d64/" as d64;
 
 d64.sectorsPerTrack(1);     # 21
 d64.sectorsPerTrack(18);    # 19

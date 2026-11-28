@@ -1,11 +1,11 @@
 <!-- SPDX-License-Identifier: LGPL-3.0-only -->
 <!-- SPDX-FileCopyrightText: Copyright (C) 2026 mplx <mplx@jennifer-lang.dev> -->
 
-# @deckyard/d64
+# @skiffyard/d64
 
 Read, write, create and format Commodore™ 1541 D64 disk images.
 
-This deck is part of [Deckyard](https://github.com/deckyard), community decks for [Jennifer](https://jennifer-lang.dev/).
+This deck is part of [Skiffyard](https://github.com/skiffyard), small community decks for [Jennifer](https://jennifer-lang.dev/).
 
 A D64 is the blocks of a 5.25" disk stored back to back with no header: 683
 blocks of 256 bytes on a 35-track disk. Inside them is CBM™ DOS 2.6 - the BAM in
@@ -17,7 +17,7 @@ per file. Four BAM layouts are supported: stock 35-track `Cbm` and the 40-track
 
 ```jennifer
 use io;
-import "@deckyard/d64/" as d64;
+import "@skiffyard/d64/" as d64;
 
 def img as d64.Image init d64.formatDisk("sample disk", "01");
 $img = d64.writeText($img, "readme", d64.FileType.Seq, "hello\n");
@@ -81,7 +81,7 @@ whose length is not a D64 size.
 | [Cheatsheet](reference/cheatsheet.md) | full API surface |
 
 Runnable programs:
-[`examples/`](https://github.com/deckyard/deck-d64/tree/main/examples).
+[`examples/`](https://github.com/skiffyard/deck-d64/tree/main/examples).
 
 ## Trademarks
 

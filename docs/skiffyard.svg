@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Skiffyard</title>
+  <rect width="256" height="256" rx="56" fill="#0e1f36"/>
+  <!-- a skiff: a small boat carrying one deck -->
+  <g>
+    <rect x="125" y="52" width="6" height="92" rx="3" fill="#f4f1ea"/>
+    <path d="M131 56 L166 68 L131 80 Z" fill="#f4f1ea"/>
+    <rect x="86" y="104" width="40" height="40" rx="8" fill="#ff7a45"/>
+    <path d="M52 148 H204 L182 184 Q178 190 170 190 H86 Q78 190 74 184 Z" fill="#f4f1ea"/>
+    <path d="M44 210 Q64 198 84 210 T124 210 T164 210 T204 210" fill="none" stroke="#3a5274" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>

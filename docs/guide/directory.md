@@ -13,7 +13,7 @@ maximum**.
 
 ```jennifer
 use io;
-import "@deckyard/d64/" as d64;
+import "@skiffyard/d64/" as d64;
 
 io.printf("%s", d64.directoryText($img));
 ```

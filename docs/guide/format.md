@@ -8,7 +8,7 @@
 
 ```jennifer
 use io;
-import "@deckyard/d64/" as d64;
+import "@skiffyard/d64/" as d64;
 
 def img as d64.Image init d64.formatDisk("sample disk", "01");
 
